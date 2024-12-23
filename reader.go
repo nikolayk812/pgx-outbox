@@ -12,7 +12,7 @@ import (
 // TODO: comments
 type Reader interface {
 	Read(ctx context.Context, filter MessageFilter, limit int) ([]Message, error)
-	Mark(ctx context.Context, ids []int64) error
+	Mark(ctx context.Context, ids []int64) (int64, error) // TODO: rename to Ack?
 
 	// TODO: add Delete?
 }
@@ -52,7 +52,7 @@ func (r *reader) Read(ctx context.Context, filter MessageFilter, limit int) ([]M
 
 	sb = whereFilter(sb, filter)
 
-	sb = sb.OrderBy("id DESC").Limit(uint64(limit))
+	sb = sb.OrderBy("id ASC").Limit(uint64(limit))
 
 	q, args, err := sb.ToSql()
 	if err != nil {
@@ -78,9 +78,9 @@ func (r *reader) Read(ctx context.Context, filter MessageFilter, limit int) ([]M
 	return result, nil
 }
 
-func (r *reader) Mark(ctx context.Context, ids []int64) error {
+func (r *reader) Mark(ctx context.Context, ids []int64) (int64, error) {
 	if len(ids) == 0 {
-		return errors.New("empty ids")
+		return 0, nil
 	}
 
 	ub := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
@@ -91,15 +91,15 @@ func (r *reader) Mark(ctx context.Context, ids []int64) error {
 
 	q, args, err := ub.ToSql()
 	if err != nil {
-		return fmt.Errorf("ub.ToSql: %w", err)
+		return 0, fmt.Errorf("ub.ToSql: %w", err)
 	}
 
-	_, err = r.pool.Exec(ctx, q, args...)
+	commandTag, err := r.pool.Exec(ctx, q, args...)
 	if err != nil {
-		return fmt.Errorf("pool.Exec: %w", err)
+		return 0, fmt.Errorf("pool.Exec: %w", err)
 	}
 
-	return nil
+	return commandTag.RowsAffected(), nil
 }
 
 func whereFilter(sb sq.SelectBuilder, filter MessageFilter) sq.SelectBuilder {

@@ -9,7 +9,7 @@ import (
 )
 
 type Writer interface {
-	Write(ctx context.Context, tx pgx.Tx, message Message) error
+	Write(ctx context.Context, tx pgx.Tx, message Message) (int64, error)
 
 	// TODO: add WriteBatch?
 }
@@ -26,29 +26,30 @@ func NewWriter(table string) (Writer, error) {
 	return &writer{table: table}, nil
 }
 
-func (w *writer) Write(ctx context.Context, tx pgx.Tx, message Message) error {
+func (w *writer) Write(ctx context.Context, tx pgx.Tx, message Message) (int64, error) {
 	if tx == nil {
-		return errors.New("tx is nil")
+		return 0, errors.New("tx is nil")
 	}
 
 	if err := message.Validate(); err != nil {
-		return fmt.Errorf("message.Validate: %w", err)
+		return 0, fmt.Errorf("message.Validate: %w", err)
 	}
 
 	ib := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Insert(w.table).
-		Columns("broker", "topic", "metadata", "payload")
-
-	ib = ib.Values(message.Broker, message.Topic, message.Metadata, string(message.Payload))
+		Columns("broker", "topic", "metadata", "payload").
+		Values(message.Broker, message.Topic, message.Metadata, string(message.Payload)).
+		Suffix("RETURNING id")
 
 	q, args, err := ib.ToSql()
 	if err != nil {
-		return fmt.Errorf("ib.ToSql: %w", err)
+		return 0, fmt.Errorf("ib.ToSql: %w", err)
 	}
 
-	if _, err := tx.Exec(ctx, q, args...); err != nil {
-		return fmt.Errorf("tx.Exec: %w", err)
+	var id int64
+	if err := tx.QueryRow(ctx, q, args...).Scan(&id); err != nil {
+		return 0, fmt.Errorf("tx.Exec: %w", err)
 	}
 
-	return nil
+	return id, nil
 }

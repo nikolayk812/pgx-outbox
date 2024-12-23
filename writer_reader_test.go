@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/brianvoe/gofakeit"
 	"github.com/google/go-cmp/cmp"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,26 +66,234 @@ func (suite *WriterReaderTestSuite) TearDownSuite() {
 	goleak.VerifyNone(suite.T())
 }
 
-// TODO: rename
-func (suite *WriterReaderTestSuite) TestPutEvent() {
-	t := suite.T()
+func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
+	invalidMessage := fakeMessage()
+	invalidMessage.Broker = ""
 
-	tx, err := suite.pool.Begin(ctx)
-	require.NoError(t, err)
+	tests := []struct {
+		name    string
+		in      []Message
+		wantErr bool
+	}{
+		{
+			name: "no in",
+			in:   []Message{},
+		},
+		{
+			name: "single message",
+			in: []Message{
+				fakeMessage(),
+			},
+		},
+		{
+			name: "multiple in",
+			in: []Message{
+				fakeMessage(),
+				fakeMessage(),
+			},
+		},
+		{
+			name: "invalid message",
+			in: []Message{
+				invalidMessage,
+			},
+			wantErr: true,
+		},
+		// Add more test cases as needed
+	}
 
-	message := fakeMessage()
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			t := suite.T()
 
-	err = suite.writer.Write(ctx, tx, message)
-	require.NoError(t, err)
+			// GIVEN
+			for _, message := range tt.in {
+				id, err := suite.write(message)
+				if tt.wantErr {
+					require.Error(t, err)
+					return
+				}
+				require.NoError(t, err)
+				assert.Greater(t, id, int64(0))
+			}
 
-	err = tx.Commit(ctx)
-	require.NoError(t, err)
+			limit := maxInt(1, len(tt.in))
 
-	messages, err := suite.reader.Read(ctx, MessageFilter{}, 1)
-	require.NoError(t, err)
+			// THEN
+			actual, err := suite.reader.Read(ctx, MessageFilter{}, limit)
+			require.NoError(t, err)
+			assertEqualMessages(t, tt.in, actual)
 
-	assert.Len(t, messages, 1)
-	assertEqualMessage(t, message, messages[0])
+			suite.markAll()
+		})
+	}
+}
+
+func (suite *WriterReaderTestSuite) TestReader_ReadMessage() {
+	msg1 := fakeMessage()
+	msg2 := fakeMessage()
+	msg3 := fakeMessage()
+
+	tests := []struct {
+		name    string
+		in      []Message
+		filter  MessageFilter
+		limit   int
+		out     []Message
+		wantErr bool
+	}{
+		{
+			name:    "limit 0",
+			wantErr: true,
+		},
+		{
+			name:  "single message",
+			in:    Messages{msg1},
+			limit: 1,
+			out:   Messages{msg1},
+		},
+		{
+			name:  "limit works and reader gets just one message",
+			in:    Messages{msg1, msg2},
+			limit: 1,
+			out:   Messages{msg1},
+		},
+		{
+			name:  "limit works if not enough in",
+			in:    Messages{msg1, msg2},
+			limit: 3,
+			out:   Messages{msg1, msg2},
+		},
+		{
+			name:   "filter by broker works",
+			in:     Messages{msg1, msg2, msg3},
+			filter: MessageFilter{Brokers: []string{msg2.Broker, msg3.Broker}},
+			limit:  3,
+			out:    Messages{msg2, msg3},
+		}, {
+			name:   "filter by topic works",
+			in:     Messages{msg1, msg2},
+			filter: MessageFilter{Topics: []string{msg1.Topic, msg2.Topic}},
+			limit:  3,
+			out:    Messages{msg1, msg2},
+		},
+		// Add more test cases as needed
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			// GIVEN
+			for _, message := range tt.in {
+				_, err := suite.write(message)
+				require.NoError(t, err)
+			}
+
+			// WHEN
+			actual, err := suite.reader.Read(ctx, tt.filter, tt.limit)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			// THEN
+			require.NoError(t, err)
+			assertEqualMessages(t, tt.out, actual)
+
+			suite.markAll()
+		})
+	}
+}
+
+func (suite *WriterReaderTestSuite) TestWriter_MarkMessage() {
+	msg1 := fakeMessage()
+	msg2 := fakeMessage()
+	msg3 := fakeMessage()
+
+	tests := []struct {
+		name      string
+		in        []Message
+		count     int
+		duplicate bool
+	}{
+		{
+			name: "nothing to mark",
+			in:   Messages{},
+		},
+		{
+			name:  "single message",
+			in:    Messages{msg1},
+			count: 1,
+		},
+		{
+			name:      "single message duplicate",
+			in:        Messages{msg1},
+			count:     1,
+			duplicate: true,
+		},
+		{
+			name:  "one of two marked",
+			in:    Messages{msg1, msg2},
+			count: 1,
+		},
+		{
+			name:  "two of three marked",
+			in:    Messages{msg1, msg2, msg3},
+			count: 2,
+		},
+		{
+			name:  "three of three marked",
+			in:    Messages{msg1, msg2, msg3},
+			count: 3,
+		},
+		{
+			name:  "three of three duplicate",
+			in:    Messages{msg1, msg2, msg3},
+			count: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			// GIVEN
+			var ids []int64
+
+			for _, message := range tt.in {
+				id, err := suite.write(message)
+				require.NoError(t, err)
+				ids = append(ids, id)
+			}
+
+			require.GreaterOrEqual(t, len(ids), tt.count)
+
+			// WHEN
+			idsToMark := ids[:tt.count]
+
+			if tt.duplicate {
+				idsToMark = append(idsToMark, idsToMark...)
+			}
+
+			affected, err := suite.reader.Mark(ctx, idsToMark)
+
+			// THEN
+			require.NoError(t, err)
+			assert.Equal(t, tt.count, int(affected))
+
+			// WHEN-2
+			limit := maxInt(1, len(tt.in))
+
+			actual, err := suite.reader.Read(ctx, MessageFilter{}, limit)
+
+			// THEN-2
+			require.NoError(t, err)
+			assert.Len(t, actual, len(tt.in)-tt.count) // how many are left unmarked
+
+			suite.markAll()
+		})
+	}
 }
 
 func TestMain(m *testing.M) {
@@ -101,12 +310,21 @@ type payload struct {
 func fakeMessage() Message {
 	p := payload{Content: gofakeit.Quote()}
 
+	var metadata map[string]interface{}
+
+	if gofakeit.Bool() {
+		metadata = map[string]interface{}{
+			"key": gofakeit.Word(),
+		}
+	}
+
 	pp, _ := json.Marshal(p)
 
 	return Message{
-		Broker:  "sns", // TODO:
-		Topic:   "topic",
-		Payload: pp,
+		Broker:   gofakeit.Word(),
+		Topic:    gofakeit.Word(),
+		Metadata: metadata,
+		Payload:  pp,
 	}
 }
 
@@ -146,4 +364,87 @@ func assertEqualMessage(t *testing.T, expected, actual Message) {
 
 	diff := cmp.Diff(expected, actual, cmpOptions)
 	assert.Equal(t, "", diff)
+}
+
+func assertEqualMessages(t *testing.T, expected, actual []Message) {
+	assert.Equal(t, len(expected), len(actual))
+
+	for i, e := range expected {
+		assertEqualMessage(t, e, actual[i])
+	}
+}
+
+func (suite *WriterReaderTestSuite) beginTx(ctx context.Context) (pgx.Tx, func(err error) error, error) {
+	emptyFunc := func(err error) error { return nil }
+
+	tx, err := suite.pool.Begin(ctx)
+	if err != nil {
+		return nil, emptyFunc, fmt.Errorf("pool.Begin: %w", err)
+	}
+
+	commitFunc := func(execErr error) error {
+		if execErr != nil {
+			rbErr := tx.Rollback(ctx)
+			if rbErr != nil {
+				return fmt.Errorf("tx.Rollback %v: %w", execErr, rbErr)
+			}
+			return execErr
+		}
+
+		txErr := tx.Commit(ctx)
+		if txErr != nil {
+			return fmt.Errorf("tx.Commit: %w", txErr)
+		}
+
+		return nil
+	}
+
+	return tx, commitFunc, nil
+}
+
+func (suite *WriterReaderTestSuite) write(message Message) (id int64, txErr error) {
+	tx, commitFunc, err := suite.beginTx(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("beginTx: %w", err)
+	}
+	defer func() {
+		if err := commitFunc(txErr); err != nil {
+			txErr = fmt.Errorf("commitFunc: %w", err)
+		}
+	}()
+
+	if id, err = suite.writer.Write(ctx, tx, message); err != nil {
+		return 0, fmt.Errorf("writer.Write: %w", err)
+	}
+
+	return id, nil
+}
+
+func (suite *WriterReaderTestSuite) markAll() {
+	emptyFilter := MessageFilter{}
+	maxLimit := 100
+
+	actual, err := suite.reader.Read(ctx, emptyFilter, maxLimit)
+	suite.noError(err)
+
+	ids := Messages(actual).IDs()
+	affected, err := suite.reader.Mark(ctx, ids)
+	suite.noError(err)
+	suite.Len(ids, int(affected))
+
+	// THEN nothing cannot be found anymore
+	actual, err = suite.reader.Read(ctx, emptyFilter, maxLimit)
+	suite.noError(err)
+	suite.Len(actual, 0)
+}
+
+func (suite *WriterReaderTestSuite) noError(err error) {
+	suite.Require().NoError(err)
+}
+
+func maxInt(x, y int) int {
+	if x > y {
+		return x
+	}
+	return y
 }

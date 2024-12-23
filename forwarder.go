@@ -48,7 +48,8 @@ func (f *forwarder) Publish(ctx context.Context, filter MessageFilter, limit int
 	})
 
 	// if it fails here, messages would be published again on the next run
-	if err := f.reader.Mark(ctx, ids); err != nil {
+	_, err = f.reader.Mark(ctx, ids)
+	if err != nil {
 		return fmt.Errorf("reader.Mark count[%d]: %w", len(ids), err)
 	}
 

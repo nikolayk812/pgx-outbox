@@ -20,3 +20,13 @@ func (m *Message) Validate() error {
 
 	return v.Struct(m)
 }
+
+type Messages []Message
+
+func (m Messages) IDs() []int64 {
+	ids := make([]int64, 0, len(m))
+	for _, msg := range m {
+		ids = append(ids, msg.ID)
+	}
+	return ids
+}
