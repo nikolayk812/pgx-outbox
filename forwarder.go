@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/samber/lo"
 )
 
 type Forwarder interface {
-	Forward(ctx context.Context, filter MessageFilter, limit int) error
+	Forward(ctx context.Context, filter MessageFilter, limit int) (ForwardingStats, error)
 }
 
 type forwarder struct {
@@ -30,28 +29,40 @@ func NewForwarder(reader Reader, publisher Publisher) (Forwarder, error) {
 	}, nil
 }
 
-// TODO: return statistics?
-func (f *forwarder) Forward(ctx context.Context, filter MessageFilter, limit int) error {
+func (f *forwarder) Forward(ctx context.Context, filter MessageFilter, limit int) (fs ForwardingStats, _ error) {
 	messages, err := f.reader.Read(ctx, filter, limit)
 	if err != nil {
-		return fmt.Errorf("reader.Read: %w", err)
+		return fs, fmt.Errorf("reader.Read: %w", err)
 	}
+
+	if len(messages) == 0 {
+		return fs, nil
+	}
+
+	fs.Read = len(messages)
 
 	for idx, message := range messages {
 		if err := f.publisher.Publish(ctx, message); err != nil {
-			return fmt.Errorf("publisher.Publish index[%d] id[%d]: %w", idx, message.ID, err)
+			return fs, fmt.Errorf("publisher.Publish index[%d] id[%d]: %w", idx, message.ID, err)
 		}
+		fs.Published++
 	}
 
-	ids := lo.Map(messages, func(m Message, _ int) int64 {
-		return m.ID
-	})
+	ids := Messages(messages).IDs()
 
 	// if it fails here, messages would be published again on the next run
-	_, err = f.reader.Mark(ctx, ids)
+	marked, err := f.reader.Mark(ctx, ids)
 	if err != nil {
-		return fmt.Errorf("reader.Mark count[%d]: %w", len(ids), err)
+		return fs, fmt.Errorf("reader.Mark count[%d]: %w", len(ids), err)
 	}
 
-	return nil
+	fs.Marked = int(marked)
+
+	return fs, nil
+}
+
+type ForwardingStats struct {
+	Read      int
+	Published int
+	Marked    int
 }
