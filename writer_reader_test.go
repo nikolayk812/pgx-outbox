@@ -5,7 +5,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"github.com/brianvoe/gofakeit"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -17,6 +16,7 @@ import (
 	"log/slog"
 	"os"
 	"outbox/containers"
+	"outbox/fakes"
 	"testing"
 )
 
@@ -37,20 +37,20 @@ func TestWriterReaderTestSuite(t *testing.T) {
 
 func (suite *WriterReaderTestSuite) SetupSuite() {
 	container, connStr, err := containers.Postgres(ctx, "postgres:17.2-alpine3.21")
-	suite.Require().NoError(err)
+	suite.noError(err)
 	suite.container = container
 
 	suite.pool, err = pgxpool.New(ctx, connStr)
-	suite.Require().NoError(err)
+	suite.noError(err)
 
 	err = suite.prepareDB("sql/01_outbox_messages.up.sql")
-	suite.Require().NoError(err)
+	suite.noError(err)
 
 	suite.writer, err = NewWriter("outbox_messages") // TODO: const
-	suite.Require().NoError(err)
+	suite.noError(err)
 
 	suite.reader, err = NewReader(suite.pool, "outbox_messages") // TODO: const
-	suite.Require().NoError(err)
+	suite.noError(err)
 }
 
 func (suite *WriterReaderTestSuite) TearDownSuite() {
@@ -67,7 +67,7 @@ func (suite *WriterReaderTestSuite) TearDownSuite() {
 }
 
 func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
-	invalidMessage := FakeMessage()
+	invalidMessage := fakes.FakeMessage()
 	invalidMessage.Broker = ""
 
 	tests := []struct {
@@ -82,14 +82,14 @@ func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 		{
 			name: "single message",
 			in: []Message{
-				FakeMessage(),
+				fakes.FakeMessage(),
 			},
 		},
 		{
 			name: "multiple in",
 			in: []Message{
-				FakeMessage(),
-				FakeMessage(),
+				fakes.FakeMessage(),
+				fakes.FakeMessage(),
 			},
 		},
 		{
@@ -130,9 +130,9 @@ func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 }
 
 func (suite *WriterReaderTestSuite) TestReader_ReadMessage() {
-	msg1 := FakeMessage()
-	msg2 := FakeMessage()
-	msg3 := FakeMessage()
+	msg1 := fakes.FakeMessage()
+	msg2 := fakes.FakeMessage()
+	msg3 := fakes.FakeMessage()
 
 	tests := []struct {
 		name    string
@@ -207,9 +207,9 @@ func (suite *WriterReaderTestSuite) TestReader_ReadMessage() {
 }
 
 func (suite *WriterReaderTestSuite) TestWriter_MarkMessage() {
-	msg1 := FakeMessage()
-	msg2 := FakeMessage()
-	msg3 := FakeMessage()
+	msg1 := fakes.FakeMessage()
+	msg2 := fakes.FakeMessage()
+	msg3 := fakes.FakeMessage()
 
 	tests := []struct {
 		name      string
@@ -304,28 +304,6 @@ func TestMain(m *testing.M) {
 
 type payload struct {
 	Content string `json:"content"`
-}
-
-// TODO: polish
-func FakeMessage() Message {
-	p := payload{Content: gofakeit.Quote()}
-
-	var metadata map[string]interface{}
-
-	if gofakeit.Bool() {
-		metadata = map[string]interface{}{
-			"key": gofakeit.Word(),
-		}
-	}
-
-	pp, _ := json.Marshal(p)
-
-	return Message{
-		Broker:   gofakeit.Word(),
-		Topic:    gofakeit.Word(),
-		Metadata: metadata,
-		Payload:  pp,
-	}
 }
 
 //go:embed sql/*.sql

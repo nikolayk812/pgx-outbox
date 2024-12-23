@@ -27,6 +27,10 @@ func NewPublisher(snsClient *sns.Client, transformer Transformer) (outbox.Publis
 }
 
 func (p Publisher) Publish(ctx context.Context, message outbox.Message) error {
+	if err := message.Validate(); err != nil {
+		return fmt.Errorf("message.Validate: %w", err)
+	}
+
 	input, err := p.transformer.Transform(message)
 	if err != nil {
 		return fmt.Errorf("transformer.Transform: %w", err)
