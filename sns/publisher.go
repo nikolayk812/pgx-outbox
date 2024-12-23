@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
-	"pgx-outbox/outbox"
+	"outbox"
 )
 
 type Publisher struct {

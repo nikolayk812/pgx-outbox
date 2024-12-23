@@ -1,4 +1,4 @@
-module pgx-outbox
+module outbox
 
 go 1.23
 
