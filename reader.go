@@ -46,7 +46,7 @@ func (r *reader) Read(ctx context.Context, filter MessageFilter, limit int) ([]M
 	}
 
 	sb := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
-		Select("id", "event_type", "broker", "topic", "payload").
+		Select("id", "broker", "topic", "metadata", "payload").
 		From(r.table).
 		Where(sq.Eq{"published_at": nil})
 
@@ -66,7 +66,7 @@ func (r *reader) Read(ctx context.Context, filter MessageFilter, limit int) ([]M
 
 	result, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Message, error) {
 		var msg Message
-		if err := row.Scan(&msg.ID, &msg.EventType, &msg.Broker, &msg.Topic, &msg.Payload); err != nil {
+		if err := row.Scan(&msg.ID, &msg.Broker, &msg.Topic, &msg.Metadata, &msg.Payload); err != nil {
 			return Message{}, fmt.Errorf("row.Scan: %w", err)
 		}
 		return msg, nil
@@ -103,10 +103,6 @@ func (r *reader) Mark(ctx context.Context, ids []int64) error {
 }
 
 func whereFilter(sb sq.SelectBuilder, filter MessageFilter) sq.SelectBuilder {
-	if len(filter.EventTypes) > 0 {
-		sb = sb.Where(sq.Eq{"event_type": filter.EventTypes})
-	}
-
 	if len(filter.Brokers) > 0 {
 		sb = sb.Where(sq.Eq{"broker": filter.Brokers})
 	}

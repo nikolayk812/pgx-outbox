@@ -5,11 +5,11 @@ import (
 )
 
 type Message struct {
-	ID        int64
-	EventType string `validate:"required"`
-	Broker    string `validate:"required"`
-	Topic     string `validate:"required"`
-	Payload   []byte `validate:"required"`
+	ID       int64
+	Broker   string `validate:"required"`
+	Topic    string `validate:"required"`
+	Metadata map[string]interface{}
+	Payload  []byte `validate:"required,json"`
 }
 
 func (m *Message) Validate() error {

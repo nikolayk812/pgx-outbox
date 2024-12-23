@@ -2,10 +2,10 @@ package outbox
 
 import "fmt"
 
+// TODO: add metadata?
 type MessageFilter struct {
-	EventTypes []string `validate:"required"`
-	Brokers    []string `validate:"required"`
-	Topics     []string `validate:"required"`
+	Brokers []string
+	Topics  []string
 }
 
 func (m *MessageFilter) Validate() error {

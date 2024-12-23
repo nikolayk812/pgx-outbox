@@ -37,9 +37,9 @@ func (w *writer) Write(ctx context.Context, tx pgx.Tx, message Message) error {
 
 	ib := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Insert(w.table).
-		Columns("event_type", "broker", "topic", "payload")
+		Columns("broker", "topic", "metadata", "payload")
 
-	ib = ib.Values(message.EventType, message.Broker, message.Topic, message.Payload)
+	ib = ib.Values(message.Broker, message.Topic, message.Metadata, string(message.Payload))
 
 	q, args, err := ib.ToSql()
 	if err != nil {

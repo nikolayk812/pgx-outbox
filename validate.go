@@ -15,7 +15,7 @@ func getValidator() (*validator.Validate, error) {
 	var err error
 	once.Do(func() {
 		validate = validator.New()
-		//err = validate.RegisterValidation("json", validateJSON)
+		err = validate.RegisterValidation("json", validateJSON)
 	})
 	return validate, err
 }
