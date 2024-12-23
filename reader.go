@@ -10,6 +10,8 @@ import (
 )
 
 // TODO: comments
+
+//go:generate mockery --name=Reader --output=mocks --outpkg=mocks --filename=reader_mock.go
 type Reader interface {
 	Read(ctx context.Context, filter MessageFilter, limit int) ([]Message, error)
 	Mark(ctx context.Context, ids []int64) (int64, error) // TODO: rename to Ack?

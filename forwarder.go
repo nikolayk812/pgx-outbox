@@ -8,7 +8,7 @@ import (
 )
 
 type Forwarder interface {
-	Publish(ctx context.Context, filter MessageFilter, limit int) error
+	Forward(ctx context.Context, filter MessageFilter, limit int) error
 }
 
 type forwarder struct {
@@ -31,7 +31,7 @@ func NewForwarder(reader Reader, publisher Publisher) (Forwarder, error) {
 }
 
 // TODO: return statistics?
-func (f *forwarder) Publish(ctx context.Context, filter MessageFilter, limit int) error {
+func (f *forwarder) Forward(ctx context.Context, filter MessageFilter, limit int) error {
 	messages, err := f.reader.Read(ctx, filter, limit)
 	if err != nil {
 		return fmt.Errorf("reader.Read: %w", err)

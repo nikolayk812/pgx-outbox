@@ -67,7 +67,7 @@ func (suite *WriterReaderTestSuite) TearDownSuite() {
 }
 
 func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
-	invalidMessage := fakeMessage()
+	invalidMessage := FakeMessage()
 	invalidMessage.Broker = ""
 
 	tests := []struct {
@@ -82,14 +82,14 @@ func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 		{
 			name: "single message",
 			in: []Message{
-				fakeMessage(),
+				FakeMessage(),
 			},
 		},
 		{
 			name: "multiple in",
 			in: []Message{
-				fakeMessage(),
-				fakeMessage(),
+				FakeMessage(),
+				FakeMessage(),
 			},
 		},
 		{
@@ -130,9 +130,9 @@ func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 }
 
 func (suite *WriterReaderTestSuite) TestReader_ReadMessage() {
-	msg1 := fakeMessage()
-	msg2 := fakeMessage()
-	msg3 := fakeMessage()
+	msg1 := FakeMessage()
+	msg2 := FakeMessage()
+	msg3 := FakeMessage()
 
 	tests := []struct {
 		name    string
@@ -207,9 +207,9 @@ func (suite *WriterReaderTestSuite) TestReader_ReadMessage() {
 }
 
 func (suite *WriterReaderTestSuite) TestWriter_MarkMessage() {
-	msg1 := fakeMessage()
-	msg2 := fakeMessage()
-	msg3 := fakeMessage()
+	msg1 := FakeMessage()
+	msg2 := FakeMessage()
+	msg3 := FakeMessage()
 
 	tests := []struct {
 		name      string
@@ -307,7 +307,7 @@ type payload struct {
 }
 
 // TODO: polish
-func fakeMessage() Message {
+func FakeMessage() Message {
 	p := payload{Content: gofakeit.Quote()}
 
 	var metadata map[string]interface{}
