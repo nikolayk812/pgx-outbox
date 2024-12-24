@@ -14,6 +14,7 @@ linters:
     - revive     # Advanced style & best practices checker
     - godot      # Validates comment punctuation
     #- wsl        # Enforces empty lines for readability
+    - stylecheck # Enforces code style
 
     # Code quality
     - gocritic   # Finds opinionated code patterns

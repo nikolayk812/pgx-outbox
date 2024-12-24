@@ -23,6 +23,8 @@ import (
 	"go.uber.org/goleak"
 )
 
+const outboxTable = "outbox_messages"
+
 var ctx = context.Background()
 
 type WriterReaderTestSuite struct {
@@ -49,10 +51,10 @@ func (suite *WriterReaderTestSuite) SetupSuite() {
 	err = suite.prepareDB("sql/01_outbox_messages.up.sql")
 	suite.noError(err)
 
-	suite.writer, err = NewWriter("outbox_messages") // TODO: const
+	suite.writer, err = NewWriter(outboxTable)
 	suite.noError(err)
 
-	suite.reader, err = NewReader(suite.pool, "outbox_messages") // TODO: const
+	suite.reader, err = NewReader(suite.pool, outboxTable)
 	suite.noError(err)
 }
 

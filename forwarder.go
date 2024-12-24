@@ -35,11 +35,7 @@ func NewForwarder(reader Reader, publisher Publisher) (Forwarder, error) {
 }
 
 // TODO: comment.
-func (f *forwarder) Forward(
-	ctx context.Context,
-	filter types.MessageFilter,
-	limit int,
-) (fs types.ForwardStats, _ error) {
+func (f *forwarder) Forward(ctx context.Context, filter types.MessageFilter, limit int) (fs types.ForwardStats, _ error) {
 	messages, err := f.reader.Read(ctx, filter, limit)
 	if err != nil {
 		return fs, fmt.Errorf("reader.Read: %w", err)
