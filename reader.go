@@ -9,12 +9,25 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// TODO: comments
-
 //go:generate mockery --name=Reader --output=mocks --outpkg=mocks --filename=reader_mock.go
+
+// Reader reads outbox unpublished messages from a single outbox table.
+// It is recommended to run a single Reader instance per outbox table, i.e. in Kubernetes cronjob,
+// or at least to isolate Reader instances acting on the same outbox table by using different filters.
+// Otherwise, published events duplication may occur as Read and Ack happen in separate transactions.
 type Reader interface {
+
+	// Read reads unpublished messages from the outbox table that match the filter.
+	// filter is provided for flexibility to enable multiple readers reading the same outbox table,
+	// otherwise default empty filter can be used.
+	// limit is the maximum number of messages to read.
+	// Limit and frequency of Read invocations should be considered carefully to avoid overloading the database.
 	Read(ctx context.Context, filter MessageFilter, limit int) ([]Message, error)
-	Mark(ctx context.Context, ids []int64) (int64, error) // TODO: rename to Ack?
+
+	// Ack acknowledges / marks the messages by ids as published in a single transaction.
+	// ids can be obtained from the Read method output.
+	// It returns the number of messages acknowledged.
+	Ack(ctx context.Context, ids []int64) (int, error)
 
 	// TODO: add Delete?
 }
@@ -38,6 +51,11 @@ func NewReader(pool *pgxpool.Pool, table string) (Reader, error) {
 	}, nil
 }
 
+// Read returns unpublished messages sorted by ID in ascending order.
+// returns an error if
+// - filter is invalid
+// - limit is LTE 0
+// - SQL query building or DB call fails.
 func (r *reader) Read(ctx context.Context, filter MessageFilter, limit int) ([]Message, error) {
 	if err := filter.Validate(); err != nil {
 		return nil, fmt.Errorf("filter.Validate: %w", err)
@@ -80,7 +98,8 @@ func (r *reader) Read(ctx context.Context, filter MessageFilter, limit int) ([]M
 	return result, nil
 }
 
-func (r *reader) Mark(ctx context.Context, ids []int64) (int64, error) {
+// TODO: comments
+func (r *reader) Ack(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
@@ -101,7 +120,7 @@ func (r *reader) Mark(ctx context.Context, ids []int64) (int64, error) {
 		return 0, fmt.Errorf("pool.Exec: %w", err)
 	}
 
-	return commandTag.RowsAffected(), nil
+	return int(commandTag.RowsAffected()), nil
 }
 
 func whereFilter(sb sq.SelectBuilder, filter MessageFilter) sq.SelectBuilder {

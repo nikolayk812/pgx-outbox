@@ -14,23 +14,23 @@ type Reader struct {
 	mock.Mock
 }
 
-// Mark provides a mock function with given fields: ctx, ids
-func (_m *Reader) Mark(ctx context.Context, ids []int64) (int64, error) {
+// Ack provides a mock function with given fields: ctx, ids
+func (_m *Reader) Ack(ctx context.Context, ids []int64) (int, error) {
 	ret := _m.Called(ctx, ids)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Mark")
+		panic("no return value specified for Ack")
 	}
 
-	var r0 int64
+	var r0 int
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []int64) (int64, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []int64) (int, error)); ok {
 		return rf(ctx, ids)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, []int64) int64); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []int64) int); ok {
 		r0 = rf(ctx, ids)
 	} else {
-		r0 = ret.Get(0).(int64)
+		r0 = ret.Get(0).(int)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, []int64) error); ok {

@@ -276,7 +276,7 @@ func (suite *WriterReaderTestSuite) TestWriter_MarkMessage() {
 				idsToMark = append(idsToMark, idsToMark...)
 			}
 
-			affected, err := suite.reader.Mark(ctx, idsToMark)
+			affected, err := suite.reader.Ack(ctx, idsToMark)
 
 			// THEN
 			require.NoError(t, err)
@@ -406,7 +406,7 @@ func (suite *WriterReaderTestSuite) markAll() {
 	suite.noError(err)
 
 	ids := Messages(actual).IDs()
-	affected, err := suite.reader.Mark(ctx, ids)
+	affected, err := suite.reader.Ack(ctx, ids)
 	suite.noError(err)
 	suite.Len(ids, int(affected))
 

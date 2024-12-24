@@ -51,9 +51,9 @@ func (f *forwarder) Forward(ctx context.Context, filter MessageFilter, limit int
 	ids := Messages(messages).IDs()
 
 	// if it fails here, messages would be published again on the next run
-	marked, err := f.reader.Mark(ctx, ids)
+	marked, err := f.reader.Ack(ctx, ids)
 	if err != nil {
-		return fs, fmt.Errorf("reader.Mark count[%d]: %w", len(ids), err)
+		return fs, fmt.Errorf("reader.Ack count[%d]: %w", len(ids), err)
 	}
 
 	fs.Marked = int(marked)

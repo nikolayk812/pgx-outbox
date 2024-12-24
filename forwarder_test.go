@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/stretchr/testify/require"
+	"outbox/fakes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,10 +15,10 @@ import (
 var ctx = context.Background()
 
 func TestForwarder_Forward(t *testing.T) {
-	msg1 := outbox.FakeMessage()
+	msg1 := fakes.FakeMessage()
 	msg1.ID = 1
 
-	msg2 := outbox.FakeMessage()
+	msg2 := fakes.FakeMessage()
 	msg2.ID = 2
 
 	filter := outbox.MessageFilter{}
@@ -45,7 +46,7 @@ func TestForwarder_Forward(t *testing.T) {
 
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 
-				readerMock.On("Mark", ctx, []int64{msg1.ID}).Return(int64(1), nil)
+				readerMock.On("Ack", ctx, []int64{msg1.ID}).Return(int64(1), nil)
 			},
 			stats: outbox.ForwardingStats{
 				Read:      1,
@@ -63,7 +64,7 @@ func TestForwarder_Forward(t *testing.T) {
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 				publisherMock.On("Publish", ctx, msg2).Return(nil)
 
-				readerMock.On("Mark", ctx, []int64{msg1.ID, msg2.ID}).Return(int64(2), nil)
+				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(int64(2), nil)
 			},
 			stats: outbox.ForwardingStats{
 				Read:      2,
@@ -114,7 +115,7 @@ func TestForwarder_Forward(t *testing.T) {
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 				publisherMock.On("Publish", ctx, msg2).Return(nil)
 
-				readerMock.On("Mark", ctx, []int64{msg1.ID, msg2.ID}).Return(int64(1), nil)
+				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(int64(1), nil)
 			},
 			stats: outbox.ForwardingStats{
 				Read:      2,
@@ -132,7 +133,7 @@ func TestForwarder_Forward(t *testing.T) {
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 				publisherMock.On("Publish", ctx, msg2).Return(nil)
 
-				readerMock.On("Mark", ctx, []int64{msg1.ID, msg2.ID}).Return(int64(0), errors.New("failed"))
+				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(int64(0), errors.New("failed"))
 			},
 			stats: outbox.ForwardingStats{
 				Read:      2,
