@@ -3,7 +3,7 @@ package fakes
 import (
 	"encoding/json"
 	"github.com/brianvoe/gofakeit"
-	"outbox"
+	"outbox/types"
 )
 
 type payload struct {
@@ -11,22 +11,22 @@ type payload struct {
 }
 
 // TODO: polish
-func FakeMessage() outbox.Message {
+func FakeMessage() types.Message {
 
 	var metadata map[string]interface{}
 
 	if gofakeit.Bool() {
 		metadata = map[string]interface{}{
 			"string": gofakeit.Word(),
-			"int":    gofakeit.Int64(),
-			"bool":   gofakeit.Bool(),
+			//"int":    gofakeit.Int64(),
+			"bool": gofakeit.Bool(),
 		}
 	}
 
 	p := payload{Content: gofakeit.Quote()}
 	pp, _ := json.Marshal(p)
 
-	return outbox.Message{
+	return types.Message{
 		Broker:   gofakeit.Word(),
 		Topic:    gofakeit.Word(),
 		Metadata: metadata,

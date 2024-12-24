@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	sqsTypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"log/slog"
 	"outbox/containers"
 	"outbox/fakes"
+	"outbox/types"
 	"testing"
 	"time"
 
@@ -78,7 +79,7 @@ func (suite *PublisherTestSuite) TestPublisher_Publish() {
 
 	tests := []struct {
 		name    string
-		message outbox.Message
+		message types.Message
 		wantErr bool
 	}{
 		{
@@ -162,11 +163,11 @@ func (suite *PublisherTestSuite) createQueue(queue string) (string, string) {
 	// Get the queue ARN which is weirdly not part of CreateQueue output
 	attributesOutput, err := suite.sqsClient.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{
 		QueueUrl:       aws.String(*queueUrl),
-		AttributeNames: []types.QueueAttributeName{types.QueueAttributeNameQueueArn},
+		AttributeNames: []sqsTypes.QueueAttributeName{sqsTypes.QueueAttributeNameQueueArn},
 	})
 	suite.noError(err)
 
-	queueArn := attributesOutput.Attributes[string(types.QueueAttributeNameQueueArn)]
+	queueArn := attributesOutput.Attributes[string(sqsTypes.QueueAttributeNameQueueArn)]
 
 	return *createOutput.QueueUrl, queueArn
 }
@@ -180,7 +181,7 @@ func (suite *PublisherTestSuite) subscribeQueueToTopic(queueARN, topicARN string
 	suite.noError(err)
 }
 
-func (suite *PublisherTestSuite) readFromSQS(queueUrl string, timeout time.Duration) (m types.Message, _ error) {
+func (suite *PublisherTestSuite) readFromSQS(queueUrl string, timeout time.Duration) (m sqsTypes.Message, _ error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -219,14 +220,14 @@ func (suite *PublisherTestSuite) readFromSQS(queueUrl string, timeout time.Durat
 
 type simpleTransformer struct{}
 
-func (t simpleTransformer) Transform(message outbox.Message) (*awsSns.PublishInput, error) {
+func (t simpleTransformer) Transform(message types.Message) (*awsSns.PublishInput, error) {
 	return &awsSns.PublishInput{
 		Message:  aws.String(string(message.Payload)),
 		TopicArn: &message.Topic,
 	}, nil
 }
 
-func extractOutboxPayload(message types.Message) ([]byte, error) {
+func extractOutboxPayload(message sqsTypes.Message) ([]byte, error) {
 	if message.Body == nil {
 		return nil, fmt.Errorf("message.Body is nil")
 	}

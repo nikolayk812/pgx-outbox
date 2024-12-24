@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"outbox/types"
 )
 
 type Forwarder interface {
-	Forward(ctx context.Context, filter MessageFilter, limit int) (ForwardingStats, error)
+	Forward(ctx context.Context, filter types.MessageFilter, limit int) (types.ForwardStats, error)
 }
 
 type forwarder struct {
@@ -29,7 +30,7 @@ func NewForwarder(reader Reader, publisher Publisher) (Forwarder, error) {
 	}, nil
 }
 
-func (f *forwarder) Forward(ctx context.Context, filter MessageFilter, limit int) (fs ForwardingStats, _ error) {
+func (f *forwarder) Forward(ctx context.Context, filter types.MessageFilter, limit int) (fs types.ForwardStats, _ error) {
 	messages, err := f.reader.Read(ctx, filter, limit)
 	if err != nil {
 		return fs, fmt.Errorf("reader.Read: %w", err)
@@ -48,7 +49,7 @@ func (f *forwarder) Forward(ctx context.Context, filter MessageFilter, limit int
 		fs.Published++
 	}
 
-	ids := Messages(messages).IDs()
+	ids := types.Messages(messages).IDs()
 
 	// if it fails here, messages would be published again on the next run
 	marked, err := f.reader.Ack(ctx, ids)
@@ -59,10 +60,4 @@ func (f *forwarder) Forward(ctx context.Context, filter MessageFilter, limit int
 	fs.Marked = int(marked)
 
 	return fs, nil
-}
-
-type ForwardingStats struct {
-	Read      int
-	Published int
-	Marked    int
 }

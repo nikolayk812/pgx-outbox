@@ -2,9 +2,9 @@ package sns
 
 import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
-	"outbox"
+	"outbox/types"
 )
 
 type Transformer interface {
-	Transform(message outbox.Message) (*sns.PublishInput, error)
+	Transform(message types.Message) (*sns.PublishInput, error)
 }

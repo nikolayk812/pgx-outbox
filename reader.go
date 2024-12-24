@@ -7,6 +7,7 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"outbox/types"
 )
 
 //go:generate mockery --name=Reader --output=mocks --outpkg=mocks --filename=reader_mock.go
@@ -22,7 +23,7 @@ type Reader interface {
 	// otherwise default empty filter can be used.
 	// limit is the maximum number of messages to read.
 	// Limit and frequency of Read invocations should be considered carefully to avoid overloading the database.
-	Read(ctx context.Context, filter MessageFilter, limit int) ([]Message, error)
+	Read(ctx context.Context, filter types.MessageFilter, limit int) ([]types.Message, error)
 
 	// Ack acknowledges / marks the messages by ids as published in a single transaction.
 	// ids can be obtained from the Read method output.
@@ -56,7 +57,7 @@ func NewReader(pool *pgxpool.Pool, table string) (Reader, error) {
 // - filter is invalid
 // - limit is LTE 0
 // - SQL query building or DB call fails.
-func (r *reader) Read(ctx context.Context, filter MessageFilter, limit int) ([]Message, error) {
+func (r *reader) Read(ctx context.Context, filter types.MessageFilter, limit int) ([]types.Message, error) {
 	if err := filter.Validate(); err != nil {
 		return nil, fmt.Errorf("filter.Validate: %w", err)
 	}
@@ -84,10 +85,10 @@ func (r *reader) Read(ctx context.Context, filter MessageFilter, limit int) ([]M
 		return nil, fmt.Errorf("pool.Query: %w", err)
 	}
 
-	result, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Message, error) {
-		var msg Message
+	result, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (types.Message, error) {
+		var msg types.Message
 		if err := row.Scan(&msg.ID, &msg.Broker, &msg.Topic, &msg.Metadata, &msg.Payload); err != nil {
-			return Message{}, fmt.Errorf("row.Scan: %w", err)
+			return types.Message{}, fmt.Errorf("row.Scan: %w", err)
 		}
 		return msg, nil
 	})
@@ -123,7 +124,7 @@ func (r *reader) Ack(ctx context.Context, ids []int64) (int, error) {
 	return int(commandTag.RowsAffected()), nil
 }
 
-func whereFilter(sb sq.SelectBuilder, filter MessageFilter) sq.SelectBuilder {
+func whereFilter(sb sq.SelectBuilder, filter types.MessageFilter) sq.SelectBuilder {
 	if len(filter.Brokers) > 0 {
 		sb = sb.Where(sq.Eq{"broker": filter.Brokers})
 	}

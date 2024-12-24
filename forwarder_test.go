@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/stretchr/testify/require"
 	"outbox/fakes"
+	"outbox/types"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,14 +22,14 @@ func TestForwarder_Forward(t *testing.T) {
 	msg2 := fakes.FakeMessage()
 	msg2.ID = 2
 
-	filter := outbox.MessageFilter{}
+	filter := types.MessageFilter{}
 	limit := 10
 
 	tests := []struct {
 		name       string
-		messages   []outbox.Message
+		messages   []types.Message
 		setupMocks func(readerMock *mocks.Reader, publisherMock *mocks.Publisher)
-		stats      outbox.ForwardingStats
+		stats      types.ForwardStats
 		wantErr    bool
 	}{
 		{
@@ -39,16 +40,16 @@ func TestForwarder_Forward(t *testing.T) {
 		},
 		{
 			name:     "one message",
-			messages: outbox.Messages{msg1},
+			messages: types.Messages{msg1},
 			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
-					[]outbox.Message{msg1}, nil)
+					[]types.Message{msg1}, nil)
 
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 
-				readerMock.On("Ack", ctx, []int64{msg1.ID}).Return(int64(1), nil)
+				readerMock.On("Ack", ctx, []int64{msg1.ID}).Return(1, nil)
 			},
-			stats: outbox.ForwardingStats{
+			stats: types.ForwardStats{
 				Read:      1,
 				Published: 1,
 				Marked:    1,
@@ -56,17 +57,17 @@ func TestForwarder_Forward(t *testing.T) {
 		},
 		{
 			name:     "two messages",
-			messages: outbox.Messages{msg1},
+			messages: types.Messages{msg1},
 			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
-					[]outbox.Message{msg1, msg2}, nil)
+					[]types.Message{msg1, msg2}, nil)
 
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 				publisherMock.On("Publish", ctx, msg2).Return(nil)
 
-				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(int64(2), nil)
+				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(2, nil)
 			},
-			stats: outbox.ForwardingStats{
+			stats: types.ForwardStats{
 				Read:      2,
 				Published: 2,
 				Marked:    2,
@@ -74,14 +75,14 @@ func TestForwarder_Forward(t *testing.T) {
 		},
 		{
 			name:     "first fails",
-			messages: outbox.Messages{msg1},
+			messages: types.Messages{msg1},
 			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
-					[]outbox.Message{msg1}, nil)
+					[]types.Message{msg1}, nil)
 
 				publisherMock.On("Publish", ctx, msg1).Return(errors.New("failed"))
 			},
-			stats: outbox.ForwardingStats{
+			stats: types.ForwardStats{
 				Read:      1,
 				Published: 0,
 				Marked:    0,
@@ -90,15 +91,15 @@ func TestForwarder_Forward(t *testing.T) {
 		},
 		{
 			name:     "first okay, second fails",
-			messages: outbox.Messages{msg1},
+			messages: types.Messages{msg1},
 			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
-					[]outbox.Message{msg1, msg2}, nil)
+					[]types.Message{msg1, msg2}, nil)
 
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 				publisherMock.On("Publish", ctx, msg2).Return(errors.New("failed"))
 			},
-			stats: outbox.ForwardingStats{
+			stats: types.ForwardStats{
 				Read:      2,
 				Published: 1,
 				Marked:    0,
@@ -107,17 +108,17 @@ func TestForwarder_Forward(t *testing.T) {
 		},
 		{
 			name:     "two messages, but only one marked",
-			messages: outbox.Messages{msg1},
+			messages: types.Messages{msg1},
 			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
-					[]outbox.Message{msg1, msg2}, nil)
+					[]types.Message{msg1, msg2}, nil)
 
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 				publisherMock.On("Publish", ctx, msg2).Return(nil)
 
-				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(int64(1), nil)
+				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(1, nil)
 			},
-			stats: outbox.ForwardingStats{
+			stats: types.ForwardStats{
 				Read:      2,
 				Published: 2,
 				Marked:    1,
@@ -125,17 +126,17 @@ func TestForwarder_Forward(t *testing.T) {
 		},
 		{
 			name:     "two messages, mark fails",
-			messages: outbox.Messages{msg1},
+			messages: types.Messages{msg1},
 			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
-					[]outbox.Message{msg1, msg2}, nil)
+					[]types.Message{msg1, msg2}, nil)
 
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 				publisherMock.On("Publish", ctx, msg2).Return(nil)
 
-				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(int64(0), errors.New("failed"))
+				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(0, errors.New("failed"))
 			},
-			stats: outbox.ForwardingStats{
+			stats: types.ForwardStats{
 				Read:      2,
 				Published: 2,
 				Marked:    0,

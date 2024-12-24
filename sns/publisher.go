@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"outbox"
+	"outbox/types"
 )
 
 type Publisher struct {
@@ -26,7 +27,7 @@ func NewPublisher(snsClient *sns.Client, transformer Transformer) (outbox.Publis
 	}, nil
 }
 
-func (p Publisher) Publish(ctx context.Context, message outbox.Message) error {
+func (p Publisher) Publish(ctx context.Context, message types.Message) error {
 	if err := message.Validate(); err != nil {
 		return fmt.Errorf("message.Validate: %w", err)
 	}

@@ -1,4 +1,4 @@
-package outbox
+package types
 
 import (
 	"github.com/stretchr/testify/require"

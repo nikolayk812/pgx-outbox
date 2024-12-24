@@ -6,6 +6,7 @@ import (
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
+	"outbox/types"
 )
 
 // Writer writes outbox messages to a single outbox table.
@@ -16,7 +17,7 @@ type Writer interface {
 
 	// Write writes the message to the outbox table.
 	// It returns the ID of the newly inserted message.
-	Write(ctx context.Context, tx pgx.Tx, message Message) (int64, error)
+	Write(ctx context.Context, tx pgx.Tx, message types.Message) (int64, error)
 
 	// TODO: add WriteBatch?
 }
@@ -37,7 +38,7 @@ func NewWriter(table string) (Writer, error) {
 // - tx is nil
 // - message is invalid
 // - write operation fails.
-func (w *writer) Write(ctx context.Context, tx pgx.Tx, message Message) (int64, error) {
+func (w *writer) Write(ctx context.Context, tx pgx.Tx, message types.Message) (int64, error) {
 	if tx == nil {
 		return 0, errors.New("tx is nil")
 	}

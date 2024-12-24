@@ -17,6 +17,7 @@ import (
 	"os"
 	"outbox/containers"
 	"outbox/fakes"
+	"outbox/types"
 	"testing"
 )
 
@@ -72,29 +73,29 @@ func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 
 	tests := []struct {
 		name    string
-		in      []Message
+		in      []types.Message
 		wantErr bool
 	}{
 		{
-			name: "no in",
-			in:   []Message{},
+			name: "no messages",
+			in:   []types.Message{},
 		},
 		{
 			name: "single message",
-			in: []Message{
+			in: []types.Message{
 				fakes.FakeMessage(),
 			},
 		},
 		{
 			name: "multiple in",
-			in: []Message{
+			in: []types.Message{
 				fakes.FakeMessage(),
 				fakes.FakeMessage(),
 			},
 		},
 		{
 			name: "invalid message",
-			in: []Message{
+			in: []types.Message{
 				invalidMessage,
 			},
 			wantErr: true,
@@ -120,7 +121,7 @@ func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 			limit := maxInt(1, len(tt.in))
 
 			// THEN
-			actual, err := suite.reader.Read(ctx, MessageFilter{}, limit)
+			actual, err := suite.reader.Read(ctx, types.MessageFilter{}, limit)
 			require.NoError(t, err)
 			assertEqualMessages(t, tt.in, actual)
 
@@ -136,10 +137,10 @@ func (suite *WriterReaderTestSuite) TestReader_ReadMessage() {
 
 	tests := []struct {
 		name    string
-		in      []Message
-		filter  MessageFilter
+		in      []types.Message
+		filter  types.MessageFilter
 		limit   int
-		out     []Message
+		out     []types.Message
 		wantErr bool
 	}{
 		{
@@ -148,34 +149,34 @@ func (suite *WriterReaderTestSuite) TestReader_ReadMessage() {
 		},
 		{
 			name:  "single message",
-			in:    Messages{msg1},
+			in:    types.Messages{msg1},
 			limit: 1,
-			out:   Messages{msg1},
+			out:   types.Messages{msg1},
 		},
 		{
 			name:  "limit works and reader gets just one message",
-			in:    Messages{msg1, msg2},
+			in:    types.Messages{msg1, msg2},
 			limit: 1,
-			out:   Messages{msg1},
+			out:   types.Messages{msg1},
 		},
 		{
 			name:  "limit works if not enough in",
-			in:    Messages{msg1, msg2},
+			in:    types.Messages{msg1, msg2},
 			limit: 3,
-			out:   Messages{msg1, msg2},
+			out:   types.Messages{msg1, msg2},
 		},
 		{
 			name:   "filter by broker works",
-			in:     Messages{msg1, msg2, msg3},
-			filter: MessageFilter{Brokers: []string{msg2.Broker, msg3.Broker}},
+			in:     types.Messages{msg1, msg2, msg3},
+			filter: types.MessageFilter{Brokers: []string{msg2.Broker, msg3.Broker}},
 			limit:  3,
-			out:    Messages{msg2, msg3},
+			out:    types.Messages{msg2, msg3},
 		}, {
 			name:   "filter by topic works",
-			in:     Messages{msg1, msg2},
-			filter: MessageFilter{Topics: []string{msg1.Topic, msg2.Topic}},
+			in:     types.Messages{msg1, msg2},
+			filter: types.MessageFilter{Topics: []string{msg1.Topic, msg2.Topic}},
 			limit:  3,
-			out:    Messages{msg1, msg2},
+			out:    types.Messages{msg1, msg2},
 		},
 		// Add more test cases as needed
 	}
@@ -213,43 +214,43 @@ func (suite *WriterReaderTestSuite) TestWriter_MarkMessage() {
 
 	tests := []struct {
 		name      string
-		in        []Message
+		in        []types.Message
 		count     int
 		duplicate bool
 	}{
 		{
 			name: "nothing to mark",
-			in:   Messages{},
+			in:   types.Messages{},
 		},
 		{
 			name:  "single message",
-			in:    Messages{msg1},
+			in:    types.Messages{msg1},
 			count: 1,
 		},
 		{
 			name:      "single message duplicate",
-			in:        Messages{msg1},
+			in:        types.Messages{msg1},
 			count:     1,
 			duplicate: true,
 		},
 		{
 			name:  "one of two marked",
-			in:    Messages{msg1, msg2},
+			in:    types.Messages{msg1, msg2},
 			count: 1,
 		},
 		{
 			name:  "two of three marked",
-			in:    Messages{msg1, msg2, msg3},
+			in:    types.Messages{msg1, msg2, msg3},
 			count: 2,
 		},
 		{
 			name:  "three of three marked",
-			in:    Messages{msg1, msg2, msg3},
+			in:    types.Messages{msg1, msg2, msg3},
 			count: 3,
 		},
 		{
 			name:  "three of three duplicate",
-			in:    Messages{msg1, msg2, msg3},
+			in:    types.Messages{msg1, msg2, msg3},
 			count: 3,
 		},
 	}
@@ -285,7 +286,7 @@ func (suite *WriterReaderTestSuite) TestWriter_MarkMessage() {
 			// WHEN-2
 			limit := maxInt(1, len(tt.in))
 
-			actual, err := suite.reader.Read(ctx, MessageFilter{}, limit)
+			actual, err := suite.reader.Read(ctx, types.MessageFilter{}, limit)
 
 			// THEN-2
 			require.NoError(t, err)
@@ -322,7 +323,7 @@ func (suite *WriterReaderTestSuite) prepareDB(scriptPath string) error {
 	return nil
 }
 
-func assertEqualMessage(t *testing.T, expected, actual Message) {
+func assertEqualMessage(t *testing.T, expected, actual types.Message) {
 	cmpOptions := cmp.Options{
 		cmp.FilterPath(func(p cmp.Path) bool {
 			return p.Last().String() == ".ID"
@@ -344,7 +345,7 @@ func assertEqualMessage(t *testing.T, expected, actual Message) {
 	assert.Equal(t, "", diff)
 }
 
-func assertEqualMessages(t *testing.T, expected, actual []Message) {
+func assertEqualMessages(t *testing.T, expected, actual []types.Message) {
 	assert.Equal(t, len(expected), len(actual))
 
 	for i, e := range expected {
@@ -380,7 +381,7 @@ func (suite *WriterReaderTestSuite) beginTx(ctx context.Context) (pgx.Tx, func(e
 	return tx, commitFunc, nil
 }
 
-func (suite *WriterReaderTestSuite) write(message Message) (id int64, txErr error) {
+func (suite *WriterReaderTestSuite) write(message types.Message) (id int64, txErr error) {
 	tx, commitFunc, err := suite.beginTx(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("beginTx: %w", err)
@@ -399,13 +400,13 @@ func (suite *WriterReaderTestSuite) write(message Message) (id int64, txErr erro
 }
 
 func (suite *WriterReaderTestSuite) markAll() {
-	emptyFilter := MessageFilter{}
+	emptyFilter := types.MessageFilter{}
 	maxLimit := 100
 
 	actual, err := suite.reader.Read(ctx, emptyFilter, maxLimit)
 	suite.noError(err)
 
-	ids := Messages(actual).IDs()
+	ids := types.Messages(actual).IDs()
 	affected, err := suite.reader.Ack(ctx, ids)
 	suite.noError(err)
 	suite.Len(ids, int(affected))
