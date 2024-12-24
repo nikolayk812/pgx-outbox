@@ -22,5 +22,11 @@ jobs:
         with:
           version: v1.60
 
+      - name: Run testifylint
+        run: |
+          go install github.com/Antonboom/testifylint@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+          testifylint ./...
+
       - name: Test
         run: make test
