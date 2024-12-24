@@ -19,8 +19,11 @@ generate:
 	go generate ./...
 
 lint:
+	golines -w .
 	golangci-lint run -v
 
 push-check:
+	gofmt -w .
+	goimports -w .
 	make build
 	make lint

@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	outbox "github.com/nikolayk812/pgx-outbox"
 	"log/slog"
 	"testing"
 	"time"
+
+	outbox "github.com/nikolayk812/pgx-outbox"
 
 	"github.com/nikolayk812/pgx-outbox/containers"
 	"github.com/nikolayk812/pgx-outbox/fakes"
@@ -182,7 +183,10 @@ func (suite *PublisherTestSuite) subscribeQueueToTopic(queueARN, topicARN string
 	suite.noError(err)
 }
 
-func (suite *PublisherTestSuite) readFromSQS(queueUrl string, timeout time.Duration) (m sqsTypes.Message, _ error) {
+func (suite *PublisherTestSuite) readFromSQS(
+	queueUrl string,
+	timeout time.Duration,
+) (m sqsTypes.Message, _ error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 

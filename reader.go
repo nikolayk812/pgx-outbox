@@ -59,7 +59,11 @@ func NewReader(pool *pgxpool.Pool, table string) (Reader, error) {
 // - filter is invalid
 // - limit is LTE 0
 // - SQL query building or DB call fails.
-func (r *reader) Read(ctx context.Context, filter types.MessageFilter, limit int) ([]types.Message, error) {
+func (r *reader) Read(
+	ctx context.Context,
+	filter types.MessageFilter,
+	limit int,
+) ([]types.Message, error) {
 	if err := filter.Validate(); err != nil {
 		return nil, fmt.Errorf("filter.Validate: %w", err)
 	}

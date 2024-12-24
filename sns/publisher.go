@@ -3,6 +3,7 @@ package sns
 import (
 	"context"
 	"fmt"
+
 	outbox "github.com/nikolayk812/pgx-outbox"
 	"github.com/nikolayk812/pgx-outbox/types"
 

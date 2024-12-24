@@ -355,7 +355,9 @@ func assertEqualMessages(t *testing.T, expected, actual []types.Message) {
 	}
 }
 
-func (suite *WriterReaderTestSuite) beginTx(ctx context.Context) (pgx.Tx, func(err error) error, error) {
+func (suite *WriterReaderTestSuite) beginTx(
+	ctx context.Context,
+) (pgx.Tx, func(err error) error, error) {
 	emptyFunc := func(_ error) error { return nil }
 
 	tx, err := suite.pool.Begin(ctx)
