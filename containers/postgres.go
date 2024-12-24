@@ -3,6 +3,7 @@ package containers
 import (
 	"context"
 	"fmt"
+
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )

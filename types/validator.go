@@ -2,8 +2,9 @@ package types
 
 import (
 	"encoding/json"
-	"github.com/go-playground/validator/v10"
 	"sync"
+
+	"github.com/go-playground/validator/v10"
 )
 
 var (

@@ -2,7 +2,8 @@ package outbox
 
 import (
 	"context"
-	"outbox/types"
+
+	"github.com/nikolayk812/pgx-outbox/types"
 )
 
 //go:generate mockery --name=Publisher --output=mocks --outpkg=mocks --filename=publisher_mock.go

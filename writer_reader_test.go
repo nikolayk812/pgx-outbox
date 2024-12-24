@@ -5,6 +5,14 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"os"
+	"testing"
+
+	"github.com/nikolayk812/pgx-outbox/containers"
+	"github.com/nikolayk812/pgx-outbox/fakes"
+	"github.com/nikolayk812/pgx-outbox/types"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,12 +21,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"go.uber.org/goleak"
-	"log/slog"
-	"os"
-	"outbox/containers"
-	"outbox/fakes"
-	"outbox/types"
-	"testing"
 )
 
 var ctx = context.Background()

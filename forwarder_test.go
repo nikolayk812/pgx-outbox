@@ -3,14 +3,17 @@ package outbox_test
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
-	"outbox/fakes"
-	"outbox/types"
+	outbox "github.com/nikolayk812/pgx-outbox"
 	"testing"
 
+	"github.com/nikolayk812/pgx-outbox/fakes"
+	"github.com/nikolayk812/pgx-outbox/types"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/nikolayk812/pgx-outbox/mocks"
+
 	"github.com/stretchr/testify/assert"
-	"outbox"
-	"outbox/mocks"
 )
 
 var ctx = context.Background()

@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/nikolayk812/pgx-outbox/types"
+
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"outbox/types"
 )
 
 //go:generate mockery --name=Reader --output=mocks --outpkg=mocks --filename=reader_mock.go

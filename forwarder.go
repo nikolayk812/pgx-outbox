@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"outbox/types"
+
+	"github.com/nikolayk812/pgx-outbox/types"
 )
 
 type Forwarder interface {

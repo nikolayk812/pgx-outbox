@@ -4,25 +4,26 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	outbox "github.com/nikolayk812/pgx-outbox"
+	"log/slog"
+	"testing"
+	"time"
+
+	"github.com/nikolayk812/pgx-outbox/containers"
+	"github.com/nikolayk812/pgx-outbox/fakes"
+	"github.com/nikolayk812/pgx-outbox/types"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqsTypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
-	"log/slog"
-	"outbox/containers"
-	"outbox/fakes"
-	"outbox/types"
-	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	awsSns "github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"outbox"
 )
 
 const (
