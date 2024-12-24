@@ -19,11 +19,13 @@ generate:
 	go generate ./...
 
 lint:
-	golines -w .
+	#golines -w .
 	golangci-lint run -v
+	testifylint --enable-all ./...
 
 push-check:
 	gofmt -w .
 	goimports -w .
+	go mod tidy
 	make build
 	make lint

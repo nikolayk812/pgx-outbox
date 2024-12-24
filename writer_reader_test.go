@@ -404,6 +404,8 @@ func (suite *WriterReaderTestSuite) write(message types.Message) (id int64, txEr
 }
 
 func (suite *WriterReaderTestSuite) markAll() {
+	suite.T().Helper()
+
 	emptyFilter := types.MessageFilter{}
 	maxLimit := 100
 
@@ -422,6 +424,7 @@ func (suite *WriterReaderTestSuite) markAll() {
 }
 
 func (suite *WriterReaderTestSuite) noError(err error) {
+	suite.T().Helper()
 	suite.Require().NoError(err)
 }
 
