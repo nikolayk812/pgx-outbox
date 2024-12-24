@@ -12,16 +12,18 @@ type payload struct {
 
 // TODO: polish
 func FakeMessage() outbox.Message {
-	p := payload{Content: gofakeit.Quote()}
 
 	var metadata map[string]interface{}
 
 	if gofakeit.Bool() {
 		metadata = map[string]interface{}{
-			"key": gofakeit.Word(),
+			"string": gofakeit.Word(),
+			"int":    gofakeit.Int64(),
+			"bool":   gofakeit.Bool(),
 		}
 	}
 
+	p := payload{Content: gofakeit.Quote()}
 	pp, _ := json.Marshal(p)
 
 	return outbox.Message{

@@ -8,7 +8,14 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// Writer writes outbox messages to a single outbox table.
+// To write messages to multiple outbox tables, create multiple Writer instances.
+// An outbox message must be written in the same transaction as the business data, hence the pgx.Tx argument.
+// Implementations must be safe for concurrent use by multiple goroutines.
 type Writer interface {
+
+	// Write writes the message to the outbox table.
+	// It returns the ID of the newly inserted message.
 	Write(ctx context.Context, tx pgx.Tx, message Message) (int64, error)
 
 	// TODO: add WriteBatch?
@@ -26,6 +33,10 @@ func NewWriter(table string) (Writer, error) {
 	return &writer{table: table}, nil
 }
 
+// Write returns an error if
+// - tx is nil
+// - message is invalid
+// - write operation fails.
 func (w *writer) Write(ctx context.Context, tx pgx.Tx, message Message) (int64, error) {
 	if tx == nil {
 		return 0, errors.New("tx is nil")

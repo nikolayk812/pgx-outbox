@@ -2,11 +2,18 @@ package sns
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"log/slog"
 	"outbox/containers"
 	"outbox/fakes"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -18,9 +25,7 @@ import (
 )
 
 const (
-	region    = "eu-central-1"
-	topicArn  = "arn:aws:sns:eu-central-1:000000000000:topic1"
-	topicName = "topic1"
+	region = "eu-central-1"
 )
 
 var ctx = context.Background()
@@ -28,6 +33,8 @@ var ctx = context.Background()
 type PublisherTestSuite struct {
 	suite.Suite
 	container testcontainers.Container
+	snsClient *awsSns.Client
+	sqsClient *sqs.Client
 
 	publisher outbox.Publisher
 }
@@ -41,12 +48,15 @@ func (suite *PublisherTestSuite) SetupSuite() {
 	suite.noError(err)
 	suite.container = container
 
-	snsClient, err := suite.createClient(endpoint)
+	suite.snsClient, err = suite.createSnsClient(endpoint)
+	suite.noError(err)
+
+	suite.sqsClient, err = suite.createSqsClient(endpoint)
 	suite.noError(err)
 
 	transformer := simpleTransformer{}
 
-	suite.publisher, err = NewPublisher(snsClient, transformer)
+	suite.publisher, err = NewPublisher(suite.snsClient, transformer)
 	suite.noError(err)
 }
 
@@ -59,6 +69,10 @@ func (suite *PublisherTestSuite) TearDownSuite() {
 }
 
 func (suite *PublisherTestSuite) TestPublisher_Publish() {
+	topicArn := suite.createTopic("topic1")
+	queueURL, queueARN := suite.createQueue("queue1")
+	suite.subscribeQueueToTopic(queueARN, topicArn)
+
 	msg1 := fakes.FakeMessage()
 	msg1.Topic = topicArn
 
@@ -88,6 +102,16 @@ func (suite *PublisherTestSuite) TestPublisher_Publish() {
 			}
 
 			require.NoError(t, err)
+
+			// receive message from SQS
+			sqsMessage, err := suite.readFromSQS(queueURL, time.Second)
+			require.NoError(t, err)
+
+			// extract outbox payload from SQS message
+			outboxPayload, err := extractOutboxPayload(sqsMessage)
+			require.NoError(t, err)
+
+			assert.Equal(t, msg1.Payload, outboxPayload)
 		})
 	}
 }
@@ -96,7 +120,7 @@ func (suite *PublisherTestSuite) noError(err error) {
 	suite.Require().NoError(err)
 }
 
-func (suite *PublisherTestSuite) createClient(endpoint string) (*awsSns.Client, error) {
+func (suite *PublisherTestSuite) createSnsClient(endpoint string) (*awsSns.Client, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	suite.noError(err)
 
@@ -104,13 +128,93 @@ func (suite *PublisherTestSuite) createClient(endpoint string) (*awsSns.Client, 
 		o.BaseEndpoint = &endpoint
 	})
 
-	// Create SNS topic
-	_, err = cli.CreateTopic(ctx, &awsSns.CreateTopicInput{
-		Name: aws.String(topicName),
+	return cli, nil
+}
+
+func (suite *PublisherTestSuite) createTopic(topic string) string {
+	output, err := suite.snsClient.CreateTopic(ctx, &awsSns.CreateTopicInput{
+		Name: aws.String(topic),
 	})
 	suite.noError(err)
 
+	return *output.TopicArn
+}
+
+func (suite *PublisherTestSuite) createSqsClient(endpoint string) (*sqs.Client, error) {
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	suite.noError(err)
+
+	cli := sqs.NewFromConfig(cfg, func(o *sqs.Options) {
+		o.BaseEndpoint = &endpoint
+	})
+
 	return cli, nil
+}
+
+func (suite *PublisherTestSuite) createQueue(queue string) (string, string) {
+	createOutput, err := suite.sqsClient.CreateQueue(ctx, &sqs.CreateQueueInput{
+		QueueName: aws.String(queue),
+	})
+	suite.noError(err)
+
+	queueUrl := createOutput.QueueUrl
+
+	// Get the queue ARN which is weirdly not part of CreateQueue output
+	attributesOutput, err := suite.sqsClient.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{
+		QueueUrl:       aws.String(*queueUrl),
+		AttributeNames: []types.QueueAttributeName{types.QueueAttributeNameQueueArn},
+	})
+	suite.noError(err)
+
+	queueArn := attributesOutput.Attributes[string(types.QueueAttributeNameQueueArn)]
+
+	return *createOutput.QueueUrl, queueArn
+}
+
+func (suite *PublisherTestSuite) subscribeQueueToTopic(queueARN, topicARN string) {
+	_, err := suite.snsClient.Subscribe(ctx, &awsSns.SubscribeInput{
+		Protocol: aws.String("sqs"),
+		TopicArn: aws.String(topicARN),
+		Endpoint: aws.String(queueARN),
+	})
+	suite.noError(err)
+}
+
+func (suite *PublisherTestSuite) readFromSQS(queueUrl string, timeout time.Duration) (m types.Message, _ error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return m, ctx.Err()
+		default:
+			messages, err := suite.sqsClient.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
+				QueueUrl:            aws.String(queueUrl),
+				MaxNumberOfMessages: 1,
+			})
+			if err != nil {
+				return m, fmt.Errorf("sqsClient.ReceiveMessage: %w", err)
+			}
+
+			if len(messages.Messages) == 0 {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+
+			message := messages.Messages[0]
+
+			_, err = suite.sqsClient.DeleteMessage(ctx, &sqs.DeleteMessageInput{
+				QueueUrl:      aws.String(queueUrl),
+				ReceiptHandle: message.ReceiptHandle,
+			})
+			if err != nil {
+				return m, fmt.Errorf("sqsClient.DeleteMessage: %w", err)
+			}
+
+			return message, nil
+		}
+	}
 }
 
 type simpleTransformer struct{}
@@ -120,4 +224,21 @@ func (t simpleTransformer) Transform(message outbox.Message) (*awsSns.PublishInp
 		Message:  aws.String(string(message.Payload)),
 		TopicArn: &message.Topic,
 	}, nil
+}
+
+func extractOutboxPayload(message types.Message) ([]byte, error) {
+	if message.Body == nil {
+		return nil, fmt.Errorf("message.Body is nil")
+	}
+
+	var snsMsg events.SNSEntity
+	if err := json.Unmarshal([]byte(*message.Body), &snsMsg); err != nil {
+		return nil, fmt.Errorf("json.Unmarshal: %w", err)
+	}
+
+	if snsMsg.Type != "Notification" {
+		return nil, fmt.Errorf("snsMsg.Type is not Notification: [%s]", snsMsg.Type)
+	}
+
+	return []byte(snsMsg.Message), nil
 }
