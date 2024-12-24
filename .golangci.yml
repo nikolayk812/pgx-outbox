@@ -1,0 +1,40 @@
+linters:
+  enable:
+    # Core linters for code correctness
+    - govet       # Reports suspicious constructs
+    - errcheck    # Checks error handling
+    - staticcheck # Comprehensive static analyzer
+    - gosimple    # Simplifies code
+    - unused      # Finds unused code
+    - ineffassign # Detects ineffective assignments
+
+    # Code style
+    - gofmt      # Standard formatting
+    - goimports  # Manages imports
+    - revive     # Advanced style & best practices checker
+    - godot      # Validates comment punctuation
+    #- wsl        # Enforces empty lines for readability
+
+    # Code quality
+    - gocritic   # Finds opinionated code patterns
+    - gosec      # Security checker
+    - unconvert  # Removes unnecessary type conversions
+    - funlen     # Checks function length
+    - gocyclo    # Measures cyclomatic complexity
+    - nilnil     # Finds redundant nil checks
+    - errorlint  # Validates error handling patterns
+
+    # Advanced checks
+    - bodyclose  # Ensures HTTP response bodies are closed
+    - exhaustive # Verifies switch statements completeness
+    - goconst    # Identifies repeated strings for constants
+    - makezero   # Suggests optimized slice declarations
+
+run:
+  timeout: 1m
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen

@@ -8,6 +8,9 @@ import (
 	"github.com/nikolayk812/pgx-outbox/types"
 )
 
+// Forwarder reads unpublished messages from the outbox table, publishes them and then marks them as published.
+// It is recommended to run a single Forwarder instance per outbox table, i.e. in Kubernetes cronjob,
+// or at least to isolate Forwarder instances acting on the same outbox table by using different filters.
 type Forwarder interface {
 	Forward(ctx context.Context, filter types.MessageFilter, limit int) (types.ForwardStats, error)
 }
@@ -31,6 +34,7 @@ func NewForwarder(reader Reader, publisher Publisher) (Forwarder, error) {
 	}, nil
 }
 
+// TODO: comment.
 func (f *forwarder) Forward(ctx context.Context, filter types.MessageFilter, limit int) (fs types.ForwardStats, _ error) {
 	messages, err := f.reader.Read(ctx, filter, limit)
 	if err != nil {
@@ -58,7 +62,7 @@ func (f *forwarder) Forward(ctx context.Context, filter types.MessageFilter, lim
 		return fs, fmt.Errorf("reader.Ack count[%d]: %w", len(ids), err)
 	}
 
-	fs.Marked = int(marked)
+	fs.Marked = marked
 
 	return fs, nil
 }

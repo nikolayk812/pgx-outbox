@@ -28,5 +28,6 @@ func (m Messages) IDs() []int64 {
 	for _, msg := range m {
 		ids = append(ids, msg.ID)
 	}
+
 	return ids
 }

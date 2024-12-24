@@ -3,8 +3,9 @@ package outbox_test
 import (
 	"context"
 	"errors"
-	outbox "github.com/nikolayk812/pgx-outbox"
 	"testing"
+
+	outbox "github.com/nikolayk812/pgx-outbox"
 
 	"github.com/nikolayk812/pgx-outbox/fakes"
 	"github.com/nikolayk812/pgx-outbox/types"
@@ -37,7 +38,7 @@ func TestForwarder_Forward(t *testing.T) {
 	}{
 		{
 			name: "no messages",
-			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
+			setupMocks: func(readerMock *mocks.Reader, _ *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(nil, nil)
 			},
 		},

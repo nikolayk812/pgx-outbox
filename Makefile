@@ -1,5 +1,8 @@
 .PHONY: test cover generate
 
+build:
+	go build -v ./...
+
 test:
 	go test ./... -v -race
 
@@ -14,3 +17,10 @@ cover:
 
 generate:
 	go generate ./...
+
+lint:
+	golangci-lint run -v
+
+push-check:
+	make build
+	make lint

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/nikolayk812/pgx-outbox/types"
 
@@ -15,9 +16,8 @@ import (
 //go:generate mockery --name=Reader --output=mocks --outpkg=mocks --filename=reader_mock.go
 
 // Reader reads outbox unpublished messages from a single outbox table.
-// It is recommended to run a single Reader instance per outbox table, i.e. in Kubernetes cronjob,
-// or at least to isolate Reader instances acting on the same outbox table by using different filters.
-// Otherwise, published events duplication may occur as Read and Ack happen in separate transactions.
+// Users should prefer to interact directly with Forwarder instance instead of Reader.
+// Read and Ack happen in different transactions.
 type Reader interface {
 
 	// Read reads unpublished messages from the outbox table that match the filter.
@@ -101,15 +101,21 @@ func (r *reader) Read(ctx context.Context, filter types.MessageFilter, limit int
 	return result, nil
 }
 
-// TODO: comments
+// Ack marks the messages by ids as published in a single transaction.
+// It sets the published_at column to the current time, same for all ids.
+// Non-existent and duplicate ids are skipped.
+// returns an error if
+// - SQL query building or DB call fails.
 func (r *reader) Ack(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
 
+	now := time.Now().UTC()
+
 	ub := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Update(r.table).
-		Set("published_at", sq.Expr("NOW()")).
+		Set("published_at", now).
 		Where(sq.Eq{"id": ids}).
 		Where(sq.Eq{"published_at": nil})
 

@@ -117,7 +117,7 @@ func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 					return
 				}
 				require.NoError(t, err)
-				assert.Greater(t, id, int64(0))
+				assert.Positive(t, id)
 			}
 
 			limit := maxInt(1, len(tt.in))
@@ -283,7 +283,7 @@ func (suite *WriterReaderTestSuite) TestWriter_MarkMessage() {
 
 			// THEN
 			require.NoError(t, err)
-			assert.Equal(t, tt.count, int(affected))
+			assert.Equal(t, tt.count, affected)
 
 			// WHEN-2
 			limit := maxInt(1, len(tt.in))
@@ -356,7 +356,7 @@ func assertEqualMessages(t *testing.T, expected, actual []types.Message) {
 }
 
 func (suite *WriterReaderTestSuite) beginTx(ctx context.Context) (pgx.Tx, func(err error) error, error) {
-	emptyFunc := func(err error) error { return nil }
+	emptyFunc := func(_ error) error { return nil }
 
 	tx, err := suite.pool.Begin(ctx)
 	if err != nil {
@@ -367,7 +367,7 @@ func (suite *WriterReaderTestSuite) beginTx(ctx context.Context) (pgx.Tx, func(e
 		if execErr != nil {
 			rbErr := tx.Rollback(ctx)
 			if rbErr != nil {
-				return fmt.Errorf("tx.Rollback %v: %w", execErr, rbErr)
+				return fmt.Errorf("tx.Rollback %v: %w", execErr, rbErr) //nolint:errorlint
 			}
 			return execErr
 		}
@@ -411,12 +411,12 @@ func (suite *WriterReaderTestSuite) markAll() {
 	ids := types.Messages(actual).IDs()
 	affected, err := suite.reader.Ack(ctx, ids)
 	suite.noError(err)
-	suite.Len(ids, int(affected))
+	suite.Len(ids, affected)
 
 	// THEN nothing cannot be found anymore
 	actual, err = suite.reader.Read(ctx, emptyFilter, maxLimit)
 	suite.noError(err)
-	suite.Len(actual, 0)
+	suite.Empty(actual)
 }
 
 func (suite *WriterReaderTestSuite) noError(err error) {
