@@ -16,11 +16,14 @@ import (
 )
 
 const (
+	// Postgres
 	connStr     = "postgres://user:password@localhost:5432/dbname"
 	outboxTable = "outbox_messages"
-	region      = "eu-central-1"
-	snsEndpoint = "http://localhost:4566"
-	topic       = "topic1"
+
+	// Localstack
+	region   = "eu-central-1"
+	endpoint = "http://localhost:4566"
+	topic    = "topic1"
 )
 
 func main() {
@@ -43,7 +46,7 @@ func main() {
 		return
 	}
 
-	snsClient, err := createSnsClient(ctx, snsEndpoint)
+	snsClient, err := createSnsClient(ctx, endpoint)
 	if err != nil {
 		gErr = fmt.Errorf("createSnsClient: %w", err)
 		return

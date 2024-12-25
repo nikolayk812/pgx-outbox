@@ -7,7 +7,7 @@ import (
 
 	outbox "github.com/nikolayk812/pgx-outbox"
 
-	"github.com/nikolayk812/pgx-outbox/fakes"
+	"github.com/nikolayk812/pgx-outbox/internal/fakes"
 	"github.com/nikolayk812/pgx-outbox/types"
 
 	"github.com/stretchr/testify/require"

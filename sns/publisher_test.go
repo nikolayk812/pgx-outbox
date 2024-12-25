@@ -10,8 +10,8 @@ import (
 
 	outbox "github.com/nikolayk812/pgx-outbox"
 
-	"github.com/nikolayk812/pgx-outbox/containers"
-	"github.com/nikolayk812/pgx-outbox/fakes"
+	"github.com/nikolayk812/pgx-outbox/internal/containers"
+	"github.com/nikolayk812/pgx-outbox/internal/fakes"
 	"github.com/nikolayk812/pgx-outbox/types"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -47,7 +47,7 @@ func TestPublisherTestSuite(t *testing.T) {
 }
 
 func (suite *PublisherTestSuite) SetupSuite() {
-	container, endpoint, err := containers.Localstack(ctx, "localstack/localstack:latest")
+	container, endpoint, err := containers.Localstack(ctx, "localstack/localstack:4.0.3")
 	suite.noError(err)
 	suite.container = container
 

@@ -5,12 +5,12 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/nikolayk812/pgx-outbox/internal/containers"
 	"log/slog"
 	"os"
 	"testing"
 
-	"github.com/nikolayk812/pgx-outbox/containers"
-	"github.com/nikolayk812/pgx-outbox/fakes"
+	"github.com/nikolayk812/pgx-outbox/internal/fakes"
 	"github.com/nikolayk812/pgx-outbox/types"
 
 	"github.com/google/go-cmp/cmp"
