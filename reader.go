@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//go:generate mockery --name=Reader --output=mocks --outpkg=mocks --filename=reader_mock.go
+//go:generate mockery --name=Reader --output=internal/mocks --outpkg=mocks --filename=reader_mock.go
 
 // Reader reads outbox unpublished messages from a single outbox table.
 // Users should prefer to interact directly with Forwarder instance instead of Reader.

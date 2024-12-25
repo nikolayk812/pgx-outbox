@@ -5,10 +5,11 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"github.com/nikolayk812/pgx-outbox/internal/containers"
 	"log/slog"
 	"os"
 	"testing"
+
+	"github.com/nikolayk812/pgx-outbox/internal/containers"
 
 	"github.com/nikolayk812/pgx-outbox/internal/fakes"
 	"github.com/nikolayk812/pgx-outbox/types"
