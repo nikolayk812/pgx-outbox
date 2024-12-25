@@ -389,7 +389,7 @@ func (suite *WriterReaderTestSuite) beginTx(
 	return tx, commitFunc, nil
 }
 
-func (suite *WriterReaderTestSuite) write(message types.Message) (id int64, txErr error) {
+func (suite *WriterReaderTestSuite) write(message types.Message) (_ int64, txErr error) {
 	tx, commitFunc, err := suite.beginTx(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("beginTx: %w", err)
@@ -400,7 +400,8 @@ func (suite *WriterReaderTestSuite) write(message types.Message) (id int64, txEr
 		}
 	}()
 
-	if id, err = suite.writer.Write(ctx, tx, message); err != nil {
+	id, err := suite.writer.Write(ctx, tx, message)
+	if err != nil {
 		return 0, fmt.Errorf("writer.Write: %w", err)
 	}
 

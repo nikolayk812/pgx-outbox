@@ -1,39 +1,56 @@
 linters:
   enable:
-    # Core linters for code correctness
-    - govet       # Reports suspicious constructs
-    - errcheck    # Checks error handling
-    - staticcheck # Comprehensive static analyzer
-    - gosimple    # Simplifies code
-    - unused      # Finds unused code
-    - ineffassign # Detects ineffective assignments
+    # Code Correctness
+    - bodyclose        # Ensures HTTP response bodies are closed
+    - contextcheck     # Checks proper usage of context.Context
+    - errcheck         # Checks error handling
+    - errorlint        # Validates error handling patterns
+    - exhaustive       # Verifies switch statement completeness
+    - govet            # Reports suspicious constructs
+    - ineffassign      # Detects ineffective assignments
+    - nilerr           # Checks for incorrect handling of nil errors
+    - nilnil           # Detects redundant nil checks
+    - noctx            # Finds improper use of background context
+    - prealloc         # Suggests preallocating slices
+    - rowserrcheck     # Ensures database rows and statements are checked for errors
+    - sqlclosecheck    # Ensures database rows and statements are closed
+    - staticcheck      # Comprehensive static analyzer
+    - typecheck        # Checks type correctness
+    - unused           # Finds unused code
 
-    # Code style
-    - gofmt      # Standard formatting
-    - goimports  # Manages imports
-    - revive     # Advanced style & best practices checker
-    - godot      # Validates comment punctuation
-    #- wsl        # Enforces empty lines for readability
-    - stylecheck # Enforces code style
+    # Code Quality
+    - cyclop           # Measures cyclomatic complexity
+    - funlen           # Checks the length of functions
+    - gocritic         # Detects suspicious constructs
+    - gocyclo          # Measures cyclomatic complexity
+    - gosimple         # Suggests code simplifications
+    - stylecheck       # Checks for style issues
+    - unconvert        # Removes unnecessary type conversions
+    - unparam          # Finds unused function parameters
+    - testifylint      # Checks for common mistakes in test code
 
-    # Code quality
-    - gocritic   # Finds opinionated code patterns
-    - gosec      # Security checker
-    - unconvert  # Removes unnecessary type conversions
-    - funlen     # Checks function length
-    - gocyclo    # Measures cyclomatic complexity
-    - nilnil     # Finds redundant nil checks
-    - errorlint  # Validates error handling patterns
+    # Code Style
+    - asciicheck       # Reports non-ASCII characters
+    - dupl             # Finds code duplications
+    #- gci              # Groups and sorts imports
+    - gofmt            # Checks for standard formatting
+    - gofumpt          # Enforces stricter formatting
+    - goimports        # Manages imports organization
+    - makezero         # Suggests optimized slice declarations
+    - misspell         # Finds spelling mistakes
+    - revive           # Linter for style and conventions
+    - tagliatelle      # Ensures struct tags are consistent
+    - whitespace       # Checks for inconsistent whitespace
 
-    # Advanced checks
-    - bodyclose  # Ensures HTTP response bodies are closed
-    - exhaustive # Verifies switch statements completeness
-    - goconst    # Identifies repeated strings for constants
-    - makezero   # Suggests optimized slice declarations
-
-    - mnd
-    - gofumpt
-    - gochecknoinits
+    # Best Practices
+    - gochecknoinits   # Warns about `init()` usage
+    - godot            # Ensures comments end with a period
+    # - goerr113         # Maintains standard error handling style
+    - nonamedreturns   # Detects named return values
+    #- paralleltest     # Ensures `t.Parallel()` usage in tests
+    - tenv             # Warns about os.Setenv and os.Clearenv usage
+    #- testpackage      # Ensures tests are in the proper package
+    #- thelper          # Ensures testing helpers are named correctly
 
 run:
   timeout: 1m

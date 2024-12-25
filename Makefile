@@ -22,7 +22,6 @@ generate:
 lint:
 	#golines -w .
 	golangci-lint run -v
-	testifylint --enable-all ./...
 
 push-check:
 	gofmt -w .
