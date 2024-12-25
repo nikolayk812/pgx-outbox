@@ -2,17 +2,20 @@ package sqs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/aws/aws-lambda-go/events"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsSqs "github.com/aws/aws-sdk-go-v2/service/sqs"
-	sqsTypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
 type Client interface {
 	CreateQueue(ctx context.Context, queueName string) (qURL string, qARN string, err error)
-	ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (sqsTypes.Message, error)
+	ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (types.Message, error)
+	ExtractOutboxPayload(message types.Message) ([]byte, error)
 }
 
 type client struct {
@@ -47,7 +50,7 @@ func (c *client) CreateQueue(ctx context.Context, queueName string) (qURL string
 	// Get the queue ARN which is weirdly not part of CreateQueue output
 	attributesOutput, err := c.cli.GetQueueAttributes(ctx, &awsSqs.GetQueueAttributesInput{
 		QueueUrl:       aws.String(queueUrl),
-		AttributeNames: []sqsTypes.QueueAttributeName{sqsTypes.QueueAttributeNameQueueArn},
+		AttributeNames: []types.QueueAttributeName{types.QueueAttributeNameQueueArn},
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("cli.GetQueueAttributes: %w", err)
@@ -56,12 +59,12 @@ func (c *client) CreateQueue(ctx context.Context, queueName string) (qURL string
 		return "", "", fmt.Errorf("cli.GetQueueAttributes: output is nil")
 	}
 
-	queueArn := attributesOutput.Attributes[string(sqsTypes.QueueAttributeNameQueueArn)]
+	queueArn := attributesOutput.Attributes[string(types.QueueAttributeNameQueueArn)]
 
 	return queueUrl, queueArn, nil
 }
 
-func (c *client) ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (m sqsTypes.Message, _ error) {
+func (c *client) ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (m types.Message, _ error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -96,4 +99,21 @@ func (c *client) ReadOneFromSQS(ctx context.Context, queueUrl string, timeout ti
 			return message, nil
 		}
 	}
+}
+
+func (c *client) ExtractOutboxPayload(message types.Message) ([]byte, error) {
+	if message.Body == nil {
+		return nil, fmt.Errorf("message.Body is nil")
+	}
+
+	var snsMsg events.SNSEntity
+	if err := json.Unmarshal([]byte(*message.Body), &snsMsg); err != nil {
+		return nil, fmt.Errorf("json.Unmarshal: %w", err)
+	}
+
+	if snsMsg.Type != "Notification" {
+		return nil, fmt.Errorf("snsMsg.Type is not Notification: [%s]", snsMsg.Type)
+	}
+
+	return []byte(snsMsg.Message), nil
 }

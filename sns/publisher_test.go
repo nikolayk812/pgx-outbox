@@ -2,13 +2,10 @@ package sns
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log/slog"
 	"testing"
 	"time"
 
-	sqsTypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/nikolayk812/pgx-outbox/sns/clients/sns"
 	"github.com/nikolayk812/pgx-outbox/sns/clients/sqs"
 
@@ -18,7 +15,6 @@ import (
 	"github.com/nikolayk812/pgx-outbox/internal/fakes"
 	"github.com/nikolayk812/pgx-outbox/types"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 
@@ -123,7 +119,7 @@ func (suite *PublisherTestSuite) TestPublisher_Publish() {
 			require.NoError(t, err)
 
 			// extract outbox payload from SQS message
-			outboxPayload, err := extractOutboxPayload(sqsMessage)
+			outboxPayload, err := suite.sqsClient.ExtractOutboxPayload(sqsMessage)
 			require.NoError(t, err)
 
 			assert.Equal(t, msg1.Payload, outboxPayload)
@@ -142,21 +138,4 @@ func (t simpleTransformer) Transform(message types.Message) (*awsSns.PublishInpu
 		Message:  aws.String(string(message.Payload)),
 		TopicArn: &message.Topic,
 	}, nil
-}
-
-func extractOutboxPayload(message sqsTypes.Message) ([]byte, error) {
-	if message.Body == nil {
-		return nil, fmt.Errorf("message.Body is nil")
-	}
-
-	var snsMsg events.SNSEntity
-	if err := json.Unmarshal([]byte(*message.Body), &snsMsg); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal: %w", err)
-	}
-
-	if snsMsg.Type != "Notification" {
-		return nil, fmt.Errorf("snsMsg.Type is not Notification: [%s]", snsMsg.Type)
-	}
-
-	return []byte(snsMsg.Message), nil
 }

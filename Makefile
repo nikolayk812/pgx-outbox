@@ -4,11 +4,12 @@ build:
 	go build -v ./...
 
 test:
+	# find . -name "go.mod" -execdir go test ./... \;
 	go test ./... -v -race
+	go test ./sns/... -v race
 
 cover:
-	$(eval EXCLUDE := fakes mocks containers)
-	$(eval PACKAGES := $(shell go list ./... | grep -v $(foreach exclude,$(EXCLUDE), -e $(exclude))))
+	$(eval PACKAGES := $(shell go list ./... | grep -v -e internal && go list ./sns/...))
 
 	go test $(PACKAGES) -v -coverprofile=coverage.out
 	go tool cover -func=coverage.out
