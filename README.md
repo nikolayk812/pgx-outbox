@@ -8,3 +8,7 @@
 # pgx-outbox
 
 This is a simple outbox pattern implementation for PostgreSQL using pgx driver.
+
+### Examples
+
+please refer to the [examples/01_sns/README.md](examples/01_sns/README.md) file.

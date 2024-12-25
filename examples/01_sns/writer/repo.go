@@ -15,6 +15,7 @@ import (
 type Repo interface {
 	CreateUser(ctx context.Context, user User) (User, error)
 }
+
 type repo struct {
 	pool *pgxpool.Pool
 
