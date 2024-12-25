@@ -49,7 +49,7 @@ func (suite *WriterReaderTestSuite) SetupSuite() {
 	suite.pool, err = pgxpool.New(ctx, connStr)
 	suite.noError(err)
 
-	err = suite.prepareDB("sql/01_outbox_messages.up.sql")
+	err = suite.prepareDB("internal/sql/01_outbox_messages.up.sql")
 	suite.noError(err)
 
 	suite.writer, err = NewWriter(outboxTable)
@@ -313,7 +313,7 @@ type payload struct {
 	Content string `json:"content"`
 }
 
-//go:embed sql/*.sql
+//go:embed internal/sql/*.sql
 var sqlFiles embed.FS
 
 func (suite *WriterReaderTestSuite) prepareDB(scriptPath string) error {
