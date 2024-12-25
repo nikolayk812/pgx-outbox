@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	mocks2 "github.com/nikolayk812/pgx-outbox/internal/mocks"
+	"github.com/nikolayk812/pgx-outbox/internal/mocks"
 
 	outbox "github.com/nikolayk812/pgx-outbox"
 
@@ -32,20 +32,20 @@ func TestForwarder_Forward(t *testing.T) {
 	tests := []struct {
 		name       string
 		messages   []types.Message
-		setupMocks func(readerMock *mocks2.Reader, publisherMock *mocks2.Publisher)
+		setupMocks func(readerMock *mocks.Reader, publisherMock *mocks.Publisher)
 		stats      types.ForwardStats
 		wantErr    bool
 	}{
 		{
 			name: "no messages",
-			setupMocks: func(readerMock *mocks2.Reader, _ *mocks2.Publisher) {
+			setupMocks: func(readerMock *mocks.Reader, _ *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(nil, nil)
 			},
 		},
 		{
 			name:     "one message",
 			messages: types.Messages{msg1},
-			setupMocks: func(readerMock *mocks2.Reader, publisherMock *mocks2.Publisher) {
+			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
 					[]types.Message{msg1}, nil)
 
@@ -62,7 +62,7 @@ func TestForwarder_Forward(t *testing.T) {
 		{
 			name:     "two messages",
 			messages: types.Messages{msg1},
-			setupMocks: func(readerMock *mocks2.Reader, publisherMock *mocks2.Publisher) {
+			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
 					[]types.Message{msg1, msg2}, nil)
 
@@ -80,7 +80,7 @@ func TestForwarder_Forward(t *testing.T) {
 		{
 			name:     "first fails",
 			messages: types.Messages{msg1},
-			setupMocks: func(readerMock *mocks2.Reader, publisherMock *mocks2.Publisher) {
+			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
 					[]types.Message{msg1}, nil)
 
@@ -96,7 +96,7 @@ func TestForwarder_Forward(t *testing.T) {
 		{
 			name:     "first okay, second fails",
 			messages: types.Messages{msg1},
-			setupMocks: func(readerMock *mocks2.Reader, publisherMock *mocks2.Publisher) {
+			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
 					[]types.Message{msg1, msg2}, nil)
 
@@ -113,7 +113,7 @@ func TestForwarder_Forward(t *testing.T) {
 		{
 			name:     "two messages, but only one marked",
 			messages: types.Messages{msg1},
-			setupMocks: func(readerMock *mocks2.Reader, publisherMock *mocks2.Publisher) {
+			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
 					[]types.Message{msg1, msg2}, nil)
 
@@ -131,7 +131,7 @@ func TestForwarder_Forward(t *testing.T) {
 		{
 			name:     "two messages, mark fails",
 			messages: types.Messages{msg1},
-			setupMocks: func(readerMock *mocks2.Reader, publisherMock *mocks2.Publisher) {
+			setupMocks: func(readerMock *mocks.Reader, publisherMock *mocks.Publisher) {
 				readerMock.On("Read", ctx, filter, limit).Return(
 					[]types.Message{msg1, msg2}, nil)
 
@@ -152,8 +152,8 @@ func TestForwarder_Forward(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mocks
-			readerMock := new(mocks2.Reader)
-			publisherMock := new(mocks2.Publisher)
+			readerMock := new(mocks.Reader)
+			publisherMock := new(mocks.Publisher)
 
 			// Create the forwarder
 			forwarder, err := outbox.NewForwarder(readerMock, publisherMock)

@@ -10,14 +10,15 @@ import (
 )
 
 func createSnsClient(ctx context.Context, endpoint string) (*sns.Client, error) {
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region), config.WithBaseEndpoint(endpoint))
 	if err != nil {
 		return nil, fmt.Errorf("config.LoadDefaultConfig: %w", err)
 	}
 
-	cli := sns.NewFromConfig(cfg, func(o *sns.Options) {
-		o.BaseEndpoint = &endpoint
-	})
+	cli := sns.NewFromConfig(cfg)
+	if cli == nil {
+		return nil, fmt.Errorf("sns.NewFromConfig returned nil")
+	}
 
 	if _, err := cli.CreateTopic(ctx, &sns.CreateTopicInput{
 		Name: aws.String(topic),
