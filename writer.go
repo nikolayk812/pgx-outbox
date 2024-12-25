@@ -16,7 +16,6 @@ import (
 // An outbox message must be written in the same transaction as the business data, hence the pgx.Tx argument.
 // Implementations must be safe for concurrent use by multiple goroutines.
 type Writer interface {
-
 	// Write writes the message to the outbox table.
 	// It returns the ID of the newly inserted message.
 	Write(ctx context.Context, tx pgx.Tx, message types.Message) (int64, error)

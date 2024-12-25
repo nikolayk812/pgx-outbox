@@ -31,3 +31,5 @@ func (m Messages) IDs() []int64 {
 
 	return ids
 }
+
+type ToMessageFunc[T any] func(entity T) (Message, error)

@@ -19,7 +19,6 @@ import (
 // Users should prefer to interact directly with Forwarder instance instead of Reader.
 // Read and Ack happen in different transactions.
 type Reader interface {
-
 	// Read reads unpublished messages from the outbox table that match the filter.
 	// filter is provided for flexibility to enable multiple readers reading the same outbox table,
 	// otherwise default empty filter can be used.

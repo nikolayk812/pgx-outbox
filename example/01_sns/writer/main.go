@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/brianvoe/gofakeit"
 	"github.com/google/uuid"
@@ -41,9 +42,10 @@ func main() {
 		return
 	}
 
-	r := &repo{
-		pool:   pool,
-		writer: writer,
+	repo, err := NewRepo(pool, writer, userToMessage)
+	if err != nil {
+		gErr = fmt.Errorf("NewRepo: %w", err)
+		return
 	}
 
 	for {
@@ -53,11 +55,14 @@ func main() {
 			Age:  gofakeit.Number(18, 100),
 		}
 
-		err := r.CreateUser(ctx, user)
+		user, err = repo.CreateUser(ctx, user)
 		if err != nil {
 			gErr = fmt.Errorf("r.CreateUser: %w", err)
 			return
 		}
-	}
 
+		slog.Info("user created", "user", user)
+
+		time.Sleep(1500 * time.Millisecond)
+	}
 }

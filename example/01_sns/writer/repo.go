@@ -5,36 +5,62 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nikolayk812/pgx-outbox/types"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	outbox "github.com/nikolayk812/pgx-outbox"
-	"github.com/nikolayk812/pgx-outbox/fakes"
 )
 
+type Repo interface {
+	CreateUser(ctx context.Context, user User) (User, error)
+}
 type repo struct {
-	pool   *pgxpool.Pool
+	pool *pgxpool.Pool
+
 	writer outbox.Writer
+	mapper UserMessageMapper
 }
 
-func (r *repo) CreateUser(ctx context.Context, user User) error {
+func NewRepo(pool *pgxpool.Pool, writer outbox.Writer, mapper UserMessageMapper) (Repo, error) {
+	if pool == nil {
+		return nil, fmt.Errorf("pool is nil")
+	}
+	if writer == nil {
+		return nil, fmt.Errorf("writer is nil")
+	}
+	if mapper == nil {
+		return nil, fmt.Errorf("mapper is nil")
+	}
+
+	return &repo{
+		pool:   pool,
+		writer: writer,
+		mapper: mapper,
+	}, nil
+}
+
+func (r *repo) CreateUser(ctx context.Context, user User) (u User, _ error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("pool.Begin: %w", err)
+		return u, fmt.Errorf("pool.Begin: %w", err)
 	}
 
 	user, err = r.createUser(ctx, tx, user)
 	if err != nil {
-		return fmt.Errorf("createUser: %w", err)
+		return u, fmt.Errorf("createUser: %w", err)
 	}
 
-	// TODO: convert user to message
-	message := fakes.FakeMessage()
+	message, err := r.mapper(user)
+	if err != nil {
+		return u, fmt.Errorf("mapper: %w", err)
+	}
 
 	if _, err := r.writer.Write(ctx, tx, message); err != nil {
-		return fmt.Errorf("writer.Write: %w", err)
+		return u, fmt.Errorf("writer.Write: %w", err)
 	}
 
-	return commit(ctx, tx)
+	return user, commit(ctx, tx)
 }
 
 func (r *repo) createUser(ctx context.Context, tx pgx.Tx, user User) (u User, _ error) {
@@ -44,17 +70,18 @@ func (r *repo) createUser(ctx context.Context, tx pgx.Tx, user User) (u User, _ 
 
 	var createdAt time.Time
 	err := tx.QueryRow(ctx,
-		"INSERT INTO users (id, name, age, created_at) VALUES ($1, $2, $3, $4) RETURNING created_at",
-		user.ID, user.Name, user.Age, user.CreatedAt).
+		"INSERT INTO users (id, name, age) VALUES ($1, $2, $3) RETURNING created_at",
+		user.ID, user.Name, user.Age).
 		Scan(&createdAt)
 	if err != nil {
 		return u, fmt.Errorf("tx.QueryRow: %w", err)
 	}
 
-	u.CreatedAt = createdAt
-	return u, nil
+	user.CreatedAt = createdAt
+	return user, nil
 }
 
+// TODO: rework
 func commit(ctx context.Context, tx pgx.Tx) error {
 	if tx == nil {
 		return fmt.Errorf("tx is nil")
@@ -69,3 +96,5 @@ func commit(ctx context.Context, tx pgx.Tx) error {
 
 	return nil
 }
+
+type UserMessageMapper types.ToMessageFunc[User]

@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17.2-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+    ports:
+      - "5432:5432"
+    volumes:
+      - ../../sql/01_outbox_messages.up.sql:/docker-entrypoint-initdb.d/01_outbox_messages.up.sql
+      - ../../sql/02_users.up.sql:/docker-entrypoint-initdb.d/02_users.up.sql

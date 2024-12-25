@@ -175,7 +175,8 @@ func (suite *WriterReaderTestSuite) TestReader_ReadMessage() {
 			filter: types.MessageFilter{Brokers: []string{msg2.Broker, msg3.Broker}},
 			limit:  3,
 			out:    types.Messages{msg2, msg3},
-		}, {
+		},
+		{
 			name:   "filter by topic works",
 			in:     types.Messages{msg1, msg2},
 			filter: types.MessageFilter{Topics: []string{msg1.Topic, msg2.Topic}},
