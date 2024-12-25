@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/credentials"
+
 	"github.com/nikolayk812/pgx-outbox/sns/clients/sns"
 	"github.com/nikolayk812/pgx-outbox/sns/clients/sqs"
 
@@ -49,7 +51,9 @@ func (suite *PublisherTestSuite) SetupSuite() {
 	suite.noError(err)
 	suite.container = container
 
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region), config.WithBaseEndpoint(endpoint))
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region), config.WithBaseEndpoint(endpoint),
+		// GitHub Actions build fails without StaticCredentialsProvider
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "test")))
 	suite.noError(err)
 
 	awsSnsCli := awsSns.NewFromConfig(cfg)
