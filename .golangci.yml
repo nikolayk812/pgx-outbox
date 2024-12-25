@@ -31,6 +31,10 @@ linters:
     - goconst    # Identifies repeated strings for constants
     - makezero   # Suggests optimized slice declarations
 
+    - mnd
+    - gofumpt
+    - gochecknoinits
+
 run:
   timeout: 1m
 

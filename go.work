@@ -4,4 +4,5 @@ use (
 	.
 	./sns
 	./example/01_sns/writer
+	./example/01_sns/forwarder
 )

@@ -15,6 +15,7 @@ func userToMessage(user User) (m outbox.Message, _ error) {
 		Age:       user.Age,
 		CreatedAt: user.CreatedAt,
 		Quote:     gofakeit.Quote(),
+		EventType: "user_created",
 	}
 
 	payloadBytes, err := json.Marshal(payload)
@@ -24,7 +25,7 @@ func userToMessage(user User) (m outbox.Message, _ error) {
 
 	message := outbox.Message{
 		Broker:  "sns",
-		Topic:   "user_created",
+		Topic:   topic,
 		Payload: payloadBytes,
 	}
 

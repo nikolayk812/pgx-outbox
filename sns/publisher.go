@@ -12,10 +12,10 @@ import (
 
 type Publisher struct {
 	snsClient   *sns.Client
-	transformer Transformer
+	transformer MessageTransformer
 }
 
-func NewPublisher(snsClient *sns.Client, transformer Transformer) (outbox.Publisher, error) {
+func NewPublisher(snsClient *sns.Client, transformer MessageTransformer) (outbox.Publisher, error) {
 	if snsClient == nil {
 		return nil, fmt.Errorf("snsClient is nil")
 	}

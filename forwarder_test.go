@@ -56,7 +56,7 @@ func TestForwarder_Forward(t *testing.T) {
 			stats: types.ForwardStats{
 				Read:      1,
 				Published: 1,
-				Marked:    1,
+				Acked:     1,
 			},
 		},
 		{
@@ -74,7 +74,7 @@ func TestForwarder_Forward(t *testing.T) {
 			stats: types.ForwardStats{
 				Read:      2,
 				Published: 2,
-				Marked:    2,
+				Acked:     2,
 			},
 		},
 		{
@@ -89,7 +89,7 @@ func TestForwarder_Forward(t *testing.T) {
 			stats: types.ForwardStats{
 				Read:      1,
 				Published: 0,
-				Marked:    0,
+				Acked:     0,
 			},
 			wantErr: true,
 		},
@@ -106,7 +106,7 @@ func TestForwarder_Forward(t *testing.T) {
 			stats: types.ForwardStats{
 				Read:      2,
 				Published: 1,
-				Marked:    0,
+				Acked:     0,
 			},
 			wantErr: true,
 		},
@@ -125,7 +125,7 @@ func TestForwarder_Forward(t *testing.T) {
 			stats: types.ForwardStats{
 				Read:      2,
 				Published: 2,
-				Marked:    1,
+				Acked:     1,
 			},
 		},
 		{
@@ -143,7 +143,7 @@ func TestForwarder_Forward(t *testing.T) {
 			stats: types.ForwardStats{
 				Read:      2,
 				Published: 2,
-				Marked:    0,
+				Acked:     0,
 			},
 			wantErr: true,
 		},

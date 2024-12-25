@@ -14,6 +14,12 @@ import (
 	outbox "github.com/nikolayk812/pgx-outbox"
 )
 
+const (
+	connStr     = "postgres://user:password@localhost:5432/dbname"
+	outboxTable = "outbox_messages"
+	topic       = "topic1"
+)
+
 func main() {
 	var gErr error
 
@@ -26,15 +32,13 @@ func main() {
 		os.Exit(0)
 	}()
 
-	writer, err := outbox.NewWriter("outbox_messages")
+	writer, err := outbox.NewWriter(outboxTable)
 	if err != nil {
 		gErr = fmt.Errorf("outbox.NewWriter: %w", err)
 		return
 	}
 
 	ctx := context.Background()
-
-	connStr := "postgres://user:password@localhost:5432/dbname"
 
 	pool, err := pgxpool.New(ctx, connStr)
 	if err != nil {

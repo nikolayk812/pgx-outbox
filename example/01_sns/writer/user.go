@@ -23,5 +23,7 @@ type UserMessagePayload struct {
 	Name      string    `json:"name"`
 	Age       int       `json:"age"`
 	CreatedAt time.Time `json:"created_at"`
-	Quote     string    `json:"quote"`
+
+	Quote     string `json:"quote"`
+	EventType string `json:"event_type"`
 }

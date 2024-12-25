@@ -6,6 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 )
 
-type Transformer interface {
+type MessageTransformer interface {
 	Transform(message types.Message) (*sns.PublishInput, error)
 }

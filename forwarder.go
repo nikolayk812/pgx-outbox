@@ -49,7 +49,7 @@ func (f *forwarder) Forward(ctx context.Context, filter types.MessageFilter, lim
 
 	for idx, message := range messages {
 		if err := f.publisher.Publish(ctx, message); err != nil {
-			return fs, fmt.Errorf("publisher.Publish index[%d] id[%d]: %w", idx, message.ID, err)
+			return fs, fmt.Errorf("publisher.Publish index[%d] topic[%s] id[%d]: %w", idx, message.Topic, message.ID, err)
 		}
 		fs.Published++
 	}
@@ -62,7 +62,7 @@ func (f *forwarder) Forward(ctx context.Context, filter types.MessageFilter, lim
 		return fs, fmt.Errorf("reader.Ack count[%d]: %w", len(ids), err)
 	}
 
-	fs.Marked = marked
+	fs.Acked = marked
 
 	return fs, nil
 }
