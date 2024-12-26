@@ -1,20 +1,24 @@
 .PHONY: test cover generate
 
+MODULES := $(shell find . -name "go.mod" -exec dirname {} \;)
+PACKAGES := $(shell for module in $(MODULES); do go list $$module/...; done)
+COVER_PACKAGES := $(shell echo $(PACKAGES) | tr ' ' '\n' | grep -v -e internal -e examples)
+
 build:
 	go build -v ./...
 
 test:
-	# find . -name "go.mod" -execdir go test ./... \;
-	go test ./... -v -race
-	go test ./sns/... -v race
+	go test $(PACKAGES) -v -race \;
 
 cover:
-	$(eval PACKAGES := $(shell go list ./... | grep -v -e internal && go list ./sns/...))
-
-	go test $(PACKAGES) -v -coverprofile=coverage.out
-	go tool cover -func=coverage.out
+	make cover-ci
 	go tool cover -html=coverage.out -o coverage.html
 	open -a "Google Chrome" coverage.html
+
+cover-ci:
+	go test $(COVER_PACKAGES) -v -coverprofile=coverage.out
+	go tool cover -func=coverage.out
+
 
 generate:
 	go generate ./...

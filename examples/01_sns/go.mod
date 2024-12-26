@@ -1,4 +1,4 @@
-module github.com/nikolayk812/pgx-outbox/example/01_sns
+module github.com/nikolayk812/pgx-outbox/examples/01_sns
 
 go 1.23.4
 
