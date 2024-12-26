@@ -1,4 +1,4 @@
-package outbox
+package outbox_test
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	outbox "github.com/nikolayk812/pgx-outbox"
 	"github.com/nikolayk812/pgx-outbox/internal/containers"
 	"github.com/nikolayk812/pgx-outbox/internal/fakes"
 	"github.com/nikolayk812/pgx-outbox/types"
@@ -31,8 +32,8 @@ type WriterReaderTestSuite struct {
 	pool      *pgxpool.Pool
 	container testcontainers.Container
 
-	writer Writer
-	reader Reader
+	writer outbox.Writer
+	reader outbox.Reader
 }
 
 func TestWriterReaderTestSuite(t *testing.T) {
@@ -50,10 +51,10 @@ func (suite *WriterReaderTestSuite) SetupSuite() {
 	err = suite.prepareDB("internal/sql/01_outbox_messages.up.sql")
 	suite.noError(err)
 
-	suite.writer, err = NewWriter(outboxTable)
+	suite.writer, err = outbox.NewWriter(outboxTable)
 	suite.noError(err)
 
-	suite.reader, err = NewReader(suite.pool, outboxTable)
+	suite.reader, err = outbox.NewReader(suite.pool, outboxTable)
 	suite.noError(err)
 }
 
@@ -328,6 +329,8 @@ func (suite *WriterReaderTestSuite) prepareDB(scriptPath string) error {
 }
 
 func assertEqualMessage(t *testing.T, expected, actual types.Message) {
+	t.Helper()
+
 	cmpOptions := cmp.Options{
 		cmp.FilterPath(func(p cmp.Path) bool {
 			return p.Last().String() == ".ID"
@@ -350,6 +353,8 @@ func assertEqualMessage(t *testing.T, expected, actual types.Message) {
 }
 
 func assertEqualMessages(t *testing.T, expected, actual []types.Message) {
+	t.Helper()
+
 	assert.Equal(t, len(expected), len(actual))
 
 	for i, e := range expected {
@@ -357,9 +362,7 @@ func assertEqualMessages(t *testing.T, expected, actual []types.Message) {
 	}
 }
 
-func (suite *WriterReaderTestSuite) beginTx(
-	ctx context.Context,
-) (pgx.Tx, func(err error) error, error) {
+func (suite *WriterReaderTestSuite) beginTx(ctx context.Context) (pgx.Tx, func(err error) error, error) {
 	emptyFunc := func(_ error) error { return nil }
 
 	tx, err := suite.pool.Begin(ctx)

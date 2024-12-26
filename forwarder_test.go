@@ -1,7 +1,6 @@
 package outbox_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -12,8 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-var ctx = context.Background()
 
 func TestForwarder_Forward(t *testing.T) {
 	msg1 := fakes.FakeMessage()

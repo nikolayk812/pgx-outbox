@@ -19,13 +19,19 @@ cover:
 generate:
 	go generate ./...
 
+fix-lint:
+	gofmt -w .
+	goimports -w .
+	gofumpt -w .
+	find . -name '*.go' | xargs gci write --skip-generated -s standard -s default
+
+
 lint:
 	#golines -w .
+	make fix-lint
 	golangci-lint run -v
 
 push-check:
-	gofmt -w .
-	goimports -w .
 	go mod tidy
 	make build
 	make lint

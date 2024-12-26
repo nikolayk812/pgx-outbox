@@ -1,20 +1,21 @@
-package types
+package types_test
 
 import (
 	"testing"
 
+	outbox "github.com/nikolayk812/pgx-outbox/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMessage_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		message Message
+		message outbox.Message
 		wantErr bool
 	}{
 		{
 			name: "valid message",
-			message: Message{
+			message: outbox.Message{
 				Broker:  "sns",
 				Topic:   "topic",
 				Payload: []byte(`{"content":"test"}`),
@@ -23,7 +24,7 @@ func TestMessage_Validate(t *testing.T) {
 		},
 		{
 			name: "missing broker",
-			message: Message{
+			message: outbox.Message{
 				Topic:   "topic",
 				Payload: []byte(`{"content":"test"}`),
 			},
@@ -31,7 +32,7 @@ func TestMessage_Validate(t *testing.T) {
 		},
 		{
 			name: "missing topic",
-			message: Message{
+			message: outbox.Message{
 				Broker:  "sns",
 				Payload: []byte(`{"content":"test"}`),
 			},
@@ -39,7 +40,7 @@ func TestMessage_Validate(t *testing.T) {
 		},
 		{
 			name: "invalid payload",
-			message: Message{
+			message: outbox.Message{
 				Broker:  "sns",
 				Topic:   "topic",
 				Payload: []byte(`invalid`),
