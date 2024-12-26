@@ -8,6 +8,8 @@ import (
 )
 
 func TestMessage_Validate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		message outbox.Message
@@ -52,6 +54,8 @@ func TestMessage_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			err := tt.message.Validate()
 			if tt.wantErr {
 				require.Error(t, err)

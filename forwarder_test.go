@@ -13,6 +13,8 @@ import (
 )
 
 func TestForwarder_Forward(t *testing.T) {
+	t.Parallel()
+
 	msg1 := fakes.FakeMessage()
 	msg1.ID = 1
 
@@ -144,6 +146,8 @@ func TestForwarder_Forward(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			// Create mocks
 			readerMock := new(mocks.Reader)
 			publisherMock := new(mocks.Publisher)

@@ -24,14 +24,13 @@ fix-lint:
 	goimports -w .
 	gofumpt -w .
 	find . -name '*.go' | xargs gci write --skip-generated -s standard -s default
+	go mod tidy
 
 
 lint:
-	#golines -w .
 	make fix-lint
 	golangci-lint run -v
 
 push-check:
-	go mod tidy
-	make build
 	make lint
+	make test

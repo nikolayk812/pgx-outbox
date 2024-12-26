@@ -36,6 +36,7 @@ type WriterReaderTestSuite struct {
 	reader outbox.Reader
 }
 
+//nolint:paralleltest
 func TestWriterReaderTestSuite(t *testing.T) {
 	suite.Run(t, new(WriterReaderTestSuite))
 }

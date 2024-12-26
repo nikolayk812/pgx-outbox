@@ -47,7 +47,7 @@ linters:
     - godot            # Ensures comments end with a period
     - err113         # Maintains standard error handling style
     - nonamedreturns   # Detects named return values
-    #- paralleltest     # Ensures `t.Parallel()` usage in tests
+    - paralleltest     # Ensures `t.Parallel()` usage in tests
     - tenv             # Warns about os.Setenv and os.Clearenv usage
     - testpackage      # Ensures tests are in the proper package
     - thelper          # Ensures testing helpers are named correctly
