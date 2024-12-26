@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"time"
@@ -84,7 +86,43 @@ func main() {
 			}
 		}
 
-		// TODO: extract message body
-		slog.Info("message received", "message", *sqsMessage.Body)
+		payload, err := sqsCli.ExtractOutboxPayload(sqsMessage)
+		if err != nil {
+			slog.Error(
+				"sqsCli.ExtractOutboxPayload",
+				"messageId", deref(sqsMessage.MessageId),
+				"error", err,
+			)
+			continue
+		}
+
+		pretty, err := prettyJson(payload)
+		if err != nil {
+			slog.Error(
+				"prettyJson",
+				"messageId", deref(sqsMessage.MessageId),
+				"error", err,
+			)
+			continue
+		}
+
+		// slog would escape the json string
+		log.Printf("Message received:\n%s", pretty)
 	}
+}
+
+func deref[T any](v *T) T {
+	if v == nil {
+		return *new(T)
+	}
+	return *v
+}
+
+func prettyJson(jsonData []byte) (string, error) {
+	indentedData, err := json.MarshalIndent(json.RawMessage(jsonData), "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("json.MarshalIndent: %w", err)
+	}
+
+	return string(indentedData), nil
 }

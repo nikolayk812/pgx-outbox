@@ -77,7 +77,7 @@ func main() {
 			return
 		}
 
-		slog.Info("forward stats", "stats", stats)
+		slog.Info("forwarded", "stats", stats)
 
 		time.Sleep(5 * time.Second)
 	}
