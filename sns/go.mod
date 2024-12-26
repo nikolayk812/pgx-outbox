@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.48
 	github.com/aws/aws-sdk-go-v2/service/sns v1.33.8
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.3
-	github.com/nikolayk812/pgx-outbox v0.0.0-00010101000000-000000000000
+	github.com/nikolayk812/pgx-outbox v0.0.0-20241226121911-7af1536656e9
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.34.0
 )
