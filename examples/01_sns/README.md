@@ -1,7 +1,33 @@
 # Postgres to SNS outbox pattern example
 
-![Project Logo](../images/01_sns.jpg)
+##  Architecture
 
+This example features three services: `Writer`, `Forwarder`, and `SQS reader`.
+
+![Project Logo](01_sns.jpg)
+
+### Writer
+
+Creates fake users and persists them in the `users` table in the Postgres database. 
+In the same transaction, it writes messages to the `outbox_messages` table.
+
+In the real world, the `Writer` could be a business service: `user-service`.
+
+### Forwarder
+
+Reads messages from the `outbox_messages` table, transforms and publishes them to the SNS topic.
+It is responsible for creating the SNS topic in the Localstack container, which is an emulation of the AWS services.
+
+In the real world, the `Forwarder` could be a background job of the `user-service`, i.e. a cronjob in a Kubernetes cluster.
+
+### SQS reader
+
+Creates a SQS queue, subscribes it to the SNS topic, and reads messages from the queue.
+
+In the real world, the `SQS reader` could be another business service, i.e. `cart-service` which is interested in the events of the `user-service`.
+
+
+## Steps to run
 
 ### Terminals
 
@@ -85,6 +111,20 @@ Rut it from another terminal window in the same directory: `examples/01_sns`
 
 ```sh
 go run ./sqs_reader
+```
+
+Then you should see similar logs in the terminal:
+
+```text
+2024/12/26 16:24:36 Message received:
+{
+  "id": "00d52294-abd5-4f0a-b33b-b10008c3d79a",
+  "age": 31,
+  "name": "Katrine Sawayn",
+  "quote": "\"Gluten-free green juice kogi helvetica disrupt roof.\" - Jessie Will",
+  "created_at": "2024-12-26T14:24:35.156516Z",
+  "event_type": "user_created"
+}
 ```
 
 ### Cleanup
