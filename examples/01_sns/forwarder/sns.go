@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 )
 
+// TODO: use clients package instead?
 func createSnsClient(ctx context.Context, endpoint string) (*sns.Client, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region), config.WithBaseEndpoint(endpoint))
 	if err != nil {

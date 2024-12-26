@@ -12,8 +12,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	awsSns "github.com/aws/aws-sdk-go-v2/service/sns"
-	"github.com/nikolayk812/pgx-outbox/sns/clients/sns"
-	"github.com/nikolayk812/pgx-outbox/sns/clients/sqs"
+	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/sns"
+	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/sqs"
 )
 
 const (

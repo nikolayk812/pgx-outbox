@@ -1,4 +1,4 @@
-.PHONY: test cover generate
+.PHONY: build test cover cover-ci generate fix-lint lint push-check
 
 MODULES := $(shell find . -name "go.mod" -exec dirname {} \;)
 PACKAGES := $(shell for module in $(MODULES); do go list $$module/...; done)
@@ -32,6 +32,7 @@ fix-lint:
 
 
 lint:
+	make generate
 	make fix-lint
 	golangci-lint run -v
 
