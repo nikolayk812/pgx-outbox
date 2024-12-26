@@ -1,5 +1,8 @@
 # Postgres to SNS outbox pattern example
 
+![Project Logo](../images/01_sns.jpg)
+
+
 ### Terminals
 
 Open several terminal windows and navigate to the `examples/01_sns` directory.
