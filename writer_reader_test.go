@@ -9,14 +9,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nikolayk812/pgx-outbox/internal/containers"
-
-	"github.com/nikolayk812/pgx-outbox/internal/fakes"
-	"github.com/nikolayk812/pgx-outbox/types"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nikolayk812/pgx-outbox/internal/containers"
+	"github.com/nikolayk812/pgx-outbox/internal/fakes"
+	"github.com/nikolayk812/pgx-outbox/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"

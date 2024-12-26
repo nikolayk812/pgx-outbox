@@ -3,9 +3,8 @@ package fakes
 import (
 	"encoding/json"
 
-	"github.com/nikolayk812/pgx-outbox/types"
-
 	"github.com/brianvoe/gofakeit"
+	"github.com/nikolayk812/pgx-outbox/types"
 )
 
 type payload struct {

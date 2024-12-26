@@ -9,7 +9,6 @@ import (
 
 	"github.com/brianvoe/gofakeit"
 	"github.com/google/uuid"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 	outbox "github.com/nikolayk812/pgx-outbox"
 )

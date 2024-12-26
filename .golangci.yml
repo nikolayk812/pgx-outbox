@@ -32,7 +32,7 @@ linters:
     # Code Style
     - asciicheck       # Reports non-ASCII characters
     - dupl             # Finds code duplications
-    #- gci              # Groups and sorts imports
+    - gci              # Groups and sorts imports
     - gofmt            # Checks for standard formatting
     - gofumpt          # Enforces stricter formatting
     - goimports        # Manages imports organization

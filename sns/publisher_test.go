@@ -6,25 +6,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/credentials"
-
-	"github.com/nikolayk812/pgx-outbox/sns/clients/sns"
-	"github.com/nikolayk812/pgx-outbox/sns/clients/sqs"
-
-	outbox "github.com/nikolayk812/pgx-outbox"
-
-	"github.com/nikolayk812/pgx-outbox/internal/containers"
-	"github.com/nikolayk812/pgx-outbox/internal/fakes"
-	"github.com/nikolayk812/pgx-outbox/types"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/testcontainers/testcontainers-go"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	awsSns "github.com/aws/aws-sdk-go-v2/service/sns"
+	outbox "github.com/nikolayk812/pgx-outbox"
+	"github.com/nikolayk812/pgx-outbox/internal/containers"
+	"github.com/nikolayk812/pgx-outbox/internal/fakes"
+	"github.com/nikolayk812/pgx-outbox/sns/clients/sns"
+	"github.com/nikolayk812/pgx-outbox/sns/clients/sqs"
+	"github.com/nikolayk812/pgx-outbox/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
 )
 
 const (

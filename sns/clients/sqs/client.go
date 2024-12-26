@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsSqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"

@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nikolayk812/pgx-outbox/types"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	outbox "github.com/nikolayk812/pgx-outbox"
+	"github.com/nikolayk812/pgx-outbox/types"
 )
 
 type Repo interface {

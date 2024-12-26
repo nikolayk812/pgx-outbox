@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nikolayk812/pgx-outbox/types"
-
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
+	"github.com/nikolayk812/pgx-outbox/types"
 )
 
 // Writer writes outbox messages to a single outbox table.
