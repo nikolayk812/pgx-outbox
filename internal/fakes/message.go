@@ -13,13 +13,12 @@ type payload struct {
 
 // TODO: polish.
 func FakeMessage() types.Message {
-	var metadata map[string]interface{}
+	var metadata map[string]string
 
 	if gofakeit.Bool() {
-		metadata = map[string]interface{}{
-			"string": gofakeit.Word(),
-			// "int":    gofakeit.Int64(),
-			"bool": gofakeit.Bool(),
+		metadata = map[string]string{
+			"word":  gofakeit.Word(),
+			"quote": gofakeit.Quote(),
 		}
 	}
 

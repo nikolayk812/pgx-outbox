@@ -8,7 +8,7 @@ type Message struct {
 	ID       int64
 	Broker   string `validate:"required"`
 	Topic    string `validate:"required"`
-	Metadata map[string]interface{}
+	Metadata map[string]string
 	Payload  []byte `validate:"required,json"`
 }
 
@@ -25,6 +25,7 @@ type Messages []Message
 
 func (m Messages) IDs() []int64 {
 	ids := make([]int64, 0, len(m))
+
 	for _, msg := range m {
 		ids = append(ids, msg.ID)
 	}

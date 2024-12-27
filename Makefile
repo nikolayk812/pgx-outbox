@@ -4,11 +4,13 @@ MODULES := $(shell find . -name "go.mod" -exec dirname {} \;)
 PACKAGES := $(shell for module in $(MODULES); do go list $$module/...; done)
 COVER_PACKAGES := $(shell echo $(PACKAGES) | tr ' ' '\n' | grep -v -e internal -e examples)
 
+RYUK := TESTCONTAINERS_RYUK_DISABLED=true
+
 build:
 	go build -v ./...
 
 test:
-	go test $(PACKAGES) -v -race \;
+	$(RYUK) go test $(PACKAGES) -v -race \;
 
 cover:
 	make cover-ci
@@ -16,7 +18,7 @@ cover:
 	open -a "Google Chrome" coverage.html
 
 cover-ci:
-	go test $(COVER_PACKAGES) -v -coverprofile=coverage.out
+	$(RYUK) go test $(COVER_PACKAGES) -v -coverprofile=coverage.out
 	go tool cover -func=coverage.out
 
 
