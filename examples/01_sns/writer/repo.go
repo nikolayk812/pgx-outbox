@@ -40,11 +40,16 @@ func NewRepo(pool *pgxpool.Pool, writer outbox.Writer, mapper UserMessageMapper)
 	}, nil
 }
 
-func (r *repo) CreateUser(ctx context.Context, user User) (u User, _ error) {
-	tx, err := r.pool.Begin(ctx)
+func (r *repo) CreateUser(ctx context.Context, user User) (u User, txErr error) {
+	tx, commitFunc, err := r.beginTx(ctx)
 	if err != nil {
-		return u, fmt.Errorf("pool.Begin: %w", err)
+		return u, fmt.Errorf("beginTx: %w", err)
 	}
+	defer func() {
+		if txErr = commitFunc(txErr); txErr != nil {
+			txErr = fmt.Errorf("commitFunc: %w", txErr)
+		}
+	}()
 
 	user, err = r.createUser(ctx, tx, user)
 	if err != nil {
@@ -60,7 +65,7 @@ func (r *repo) CreateUser(ctx context.Context, user User) (u User, _ error) {
 		return u, fmt.Errorf("writer.Write: %w", err)
 	}
 
-	return user, commit(ctx, tx)
+	return user, nil
 }
 
 func (r *repo) createUser(ctx context.Context, tx pgx.Tx, user User) (u User, _ error) {
@@ -79,22 +84,6 @@ func (r *repo) createUser(ctx context.Context, tx pgx.Tx, user User) (u User, _ 
 
 	user.CreatedAt = createdAt
 	return user, nil
-}
-
-// TODO: rework
-func commit(ctx context.Context, tx pgx.Tx) error {
-	if tx == nil {
-		return fmt.Errorf("tx is nil")
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		if rbErr := tx.Rollback(ctx); rbErr != nil {
-			return fmt.Errorf("tx.Rollback %v: %w", rbErr, err) //nolint:errorlint
-		}
-		return fmt.Errorf("tx.Commit: %w", err)
-	}
-
-	return nil
 }
 
 type UserMessageMapper types.ToMessageFunc[User]
