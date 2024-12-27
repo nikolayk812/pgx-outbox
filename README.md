@@ -83,6 +83,9 @@ See `outbox.Writer` example in [repo.go](./examples/01_sns/writer/repo.go) of th
 
 ```go
 forwarder, err := outbox.NewForwarderFromPool("outbox_messages", pool, publisher)
+
+stats, err := forwarder.Forward(ctx, types.MessageFilter{}, 10)
+slog.Info("forwarded", "stats", stats)
 ```
 
 where `pool` is a `pgxpool.Pool` and `publisher` is an implementation of `outbox.Publisher`.
@@ -90,9 +93,23 @@ where `pool` is a `pgxpool.Pool` and `publisher` is an implementation of `outbox
 This library provides reference publisher implementation for AWS SNS publisher in the `sns` module.
 
 ```go
-publisher, err := sns.NewPublisher(awsSnsCli, messageTransformer)
+publisher, err := outboxSns.NewPublisher(awsSnsCli, messageTransformer{})
 ```
 
+where `messageTransformer` is an implementation of `outboxSns.MessageTransformer` interface, for example:
+
+```go
+func (mt messageTransformer) Transform(message types.Message) (*awsSns.PublishInput, error) {
+	topicARN := fmt.Sprintf("arn:aws:sns:%s:%s:%s", tc.region, tc.accountID, message.Topic)
+
+	return &awsSns.PublishInput{
+		Message:  aws.String(string(message.Payload)),
+		TopicArn: &topicARN,
+	}, nil
+}
+```
+
+See `outbox.Forwarder` example in [main.go](./examples/01_sns/forwarder/main.go) of the `01_sns` directory.
 
 
 ## Examples
@@ -100,3 +117,10 @@ publisher, err := sns.NewPublisher(awsSnsCli, messageTransformer)
 please refer to the [examples/01_sns/README.md](examples/01_sns/README.md) file.
 
 ### Learning opportunities
+- pgx
+- Postgres
+- testcontainers-go
+- mockery
+- AWS SNS and SQS
+- Localstack
+- golangci-lint

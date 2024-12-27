@@ -92,6 +92,7 @@ func main() {
 type simpleTransformer struct{}
 
 func (t simpleTransformer) Transform(message types.Message) (*awsSns.PublishInput, error) {
+	// 000000000000 is the AWS account ID for Localstack.
 	topicARN := fmt.Sprintf("arn:aws:sns:%s:000000000000:%s", region, message.Topic)
 
 	return &awsSns.PublishInput{
