@@ -7,11 +7,6 @@ import (
 	"github.com/nikolayk812/pgx-outbox/types"
 )
 
-type payload struct {
-	Content string `json:"content"`
-}
-
-// TODO: polish.
 func FakeMessage() types.Message {
 	var metadata map[string]string
 
@@ -31,4 +26,8 @@ func FakeMessage() types.Message {
 		Metadata: metadata,
 		Payload:  pp,
 	}
+}
+
+type payload struct {
+	Content string `json:"content"`
 }

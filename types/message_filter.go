@@ -2,7 +2,6 @@ package types
 
 import "fmt"
 
-// TODO: add metadata?
 type MessageFilter struct {
 	Brokers []string
 	Topics  []string

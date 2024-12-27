@@ -4,17 +4,17 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/service/sns"
+	awsSns "github.com/aws/aws-sdk-go-v2/service/sns"
 	outbox "github.com/nikolayk812/pgx-outbox"
 	"github.com/nikolayk812/pgx-outbox/types"
 )
 
 type Publisher struct {
-	snsClient   *sns.Client
+	snsClient   *awsSns.Client
 	transformer MessageTransformer
 }
 
-func NewPublisher(snsClient *sns.Client, transformer MessageTransformer) (outbox.Publisher, error) {
+func NewPublisher(snsClient *awsSns.Client, transformer MessageTransformer) (outbox.Publisher, error) {
 	if snsClient == nil {
 		return nil, fmt.Errorf("snsClient is nil")
 	}

@@ -22,10 +22,9 @@ type client struct {
 	cli *awsSqs.Client
 }
 
-func New(cfg aws.Config) (Client, error) {
-	cli := awsSqs.NewFromConfig(cfg)
+func New(cli *awsSqs.Client) (Client, error) {
 	if cli == nil {
-		return nil, fmt.Errorf("sqs.NewFromConfig returned nil")
+		return nil, fmt.Errorf("cli is nil")
 	}
 
 	return &client{cli: cli}, nil

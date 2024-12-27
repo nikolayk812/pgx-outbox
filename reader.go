@@ -29,8 +29,6 @@ type Reader interface {
 	// ids can be obtained from the Read method output.
 	// It returns the number of messages acknowledged.
 	Ack(ctx context.Context, ids []int64) (int, error)
-
-	// TODO: add Delete?
 }
 
 type reader struct {

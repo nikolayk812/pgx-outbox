@@ -336,7 +336,6 @@ func assertEqualMessage(t *testing.T, expected, actual types.Message) {
 		cmp.FilterPath(func(p cmp.Path) bool {
 			return p.Last().String() == ".ID"
 		}, cmp.Ignore()),
-		// TODO: explain
 		cmp.Comparer(func(x, y []byte) bool {
 			var xp, yp payload
 			if err := json.Unmarshal(x, &xp); err != nil {
@@ -345,6 +344,7 @@ func assertEqualMessage(t *testing.T, expected, actual types.Message) {
 			if err := json.Unmarshal(y, &yp); err != nil {
 				return false
 			}
+			// Compare unmarshalled objects instead of raw bytes
 			return cmp.Equal(xp, yp)
 		}),
 	}

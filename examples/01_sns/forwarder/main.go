@@ -11,7 +11,8 @@ import (
 	awsSns "github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/jackc/pgx/v5/pgxpool"
 	outbox "github.com/nikolayk812/pgx-outbox"
-	"github.com/nikolayk812/pgx-outbox/sns"
+	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/sns"
+	outboxSns "github.com/nikolayk812/pgx-outbox/sns"
 	"github.com/nikolayk812/pgx-outbox/types"
 )
 
@@ -46,9 +47,20 @@ func main() {
 		return
 	}
 
-	snsClient, err := createSnsClient(ctx, endpoint)
+	awsSnsCli, err := sns.NewAwsClient(ctx, region, endpoint)
 	if err != nil {
-		gErr = fmt.Errorf("createSnsClient: %w", err)
+		gErr = fmt.Errorf("sns.NewAwsClient: %w", err)
+		return
+	}
+
+	snsCli, err := sns.New(awsSnsCli)
+	if err != nil {
+		gErr = fmt.Errorf("sns.New: %w", err)
+		return
+	}
+
+	if _, err := snsCli.CreateTopic(ctx, topic); err != nil {
+		gErr = fmt.Errorf("snsCli.CreateTopic: %w", err)
 		return
 	}
 
@@ -58,7 +70,7 @@ func main() {
 		return
 	}
 
-	publisher, err := sns.NewPublisher(snsClient, simpleTransformer{})
+	publisher, err := outboxSns.NewPublisher(awsSnsCli, simpleTransformer{})
 	if err != nil {
 		gErr = fmt.Errorf("sns.NewPublisher: %w", err)
 		return

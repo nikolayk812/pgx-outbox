@@ -20,8 +20,6 @@ type Writer interface {
 	// Write writes the message to the outbox table.
 	// It returns the ID of the newly inserted message.
 	Write(ctx context.Context, tx types.Tx, message types.Message) (int64, error)
-
-	// TODO: add WriteBatch?
 }
 
 type writer struct {

@@ -10,8 +10,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	awsSns "github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/sns"
 	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/sqs"
 )
@@ -37,13 +35,13 @@ func main() {
 
 	ctx := context.Background()
 
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region), config.WithBaseEndpoint(endpoint))
+	awsSqsCli, err := sqs.NewAwsClient(ctx, region, endpoint)
 	if err != nil {
-		gErr = fmt.Errorf("config.LoadDefaultConfig: %w", err)
+		gErr = fmt.Errorf("sqs.NewAwsClient: %w", err)
 		return
 	}
 
-	sqsCli, err := sqs.New(cfg)
+	sqsCli, err := sqs.New(awsSqsCli)
 	if err != nil {
 		gErr = fmt.Errorf("sqs.New: %w", err)
 		return
@@ -55,9 +53,9 @@ func main() {
 		return
 	}
 
-	awsSnsCli := awsSns.NewFromConfig(cfg)
-	if awsSnsCli == nil {
-		gErr = fmt.Errorf("awsSns.NewFromConfig returned nil")
+	awsSnsCli, err := sns.NewAwsClient(ctx, region, endpoint)
+	if err != nil {
+		gErr = fmt.Errorf("sns.NewAwsClient: %w", err)
 		return
 	}
 
