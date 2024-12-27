@@ -36,7 +36,7 @@ type reader struct {
 	table string
 }
 
-func NewReader(pool *pgxpool.Pool, table string) (Reader, error) {
+func NewReader(table string, pool *pgxpool.Pool) (Reader, error) {
 	if pool == nil {
 		return nil, errors.New("pool is nil")
 	}

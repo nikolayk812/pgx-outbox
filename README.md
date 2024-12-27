@@ -63,9 +63,9 @@ func (r *repo) CreateUser(ctx context.Context, user User) (u User, txErr error) 
 		return u, fmt.Errorf("createUser: %w", err)
 	}
 
-	message, err := r.mapper(user)
+	message, err := r.messageMapper(user)
 	if err != nil {
-		return u, fmt.Errorf("mapper: %w", err)
+		return u, fmt.Errorf("messageMapper: %w", err)
 	}
 
 	if _, err := r.writer.Write(ctx, tx, message); err != nil {
@@ -77,6 +77,22 @@ func (r *repo) CreateUser(ctx context.Context, user User) (u User, txErr error) 
 ```
 
 See `outbox.Writer` example in [repo.go](./examples/01_sns/writer/repo.go) of the `01_sns` directory.
+
+
+### 3. Add outbox.Forwarder to a cronjob:
+
+```go
+forwarder, err := outbox.NewForwarderFromPool("outbox_messages", pool, publisher)
+```
+
+where `pool` is a `pgxpool.Pool` and `publisher` is an implementation of `outbox.Publisher`.
+
+This library provides reference publisher implementation for AWS SNS publisher in the `sns` module.
+
+```go
+publisher, err := sns.NewPublisher(awsSnsCli, messageTransformer)
+```
+
 
 
 ## Examples

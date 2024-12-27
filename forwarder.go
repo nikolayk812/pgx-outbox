@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nikolayk812/pgx-outbox/types"
 )
 
@@ -32,6 +33,20 @@ func NewForwarder(reader Reader, publisher Publisher) (Forwarder, error) {
 		reader:    reader,
 		publisher: publisher,
 	}, nil
+}
+
+func NewForwarderFromPool(table string, pool *pgxpool.Pool, publisher Publisher) (Forwarder, error) {
+	reader, err := NewReader(table, pool)
+	if err != nil {
+		return nil, fmt.Errorf("NewReader: %w", err)
+	}
+
+	forwarder, err := NewForwarder(reader, publisher)
+	if err != nil {
+		return nil, fmt.Errorf("NewForwarder: %w", err)
+	}
+
+	return forwarder, nil
 }
 
 // TODO: comment.

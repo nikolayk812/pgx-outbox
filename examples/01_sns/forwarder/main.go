@@ -64,19 +64,13 @@ func main() {
 		return
 	}
 
-	reader, err := outbox.NewReader(pool, outboxTable)
-	if err != nil {
-		gErr = fmt.Errorf("outbox.NewReader: %w", err)
-		return
-	}
-
 	publisher, err := outboxSns.NewPublisher(awsSnsCli, simpleTransformer{})
 	if err != nil {
 		gErr = fmt.Errorf("sns.NewPublisher: %w", err)
 		return
 	}
 
-	forwarder, err := outbox.NewForwarder(reader, publisher)
+	forwarder, err := outbox.NewForwarderFromPool(outboxTable, pool, publisher)
 	if err != nil {
 		gErr = fmt.Errorf("outbox.NewForwarder: %w", err)
 		return

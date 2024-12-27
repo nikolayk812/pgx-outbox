@@ -55,7 +55,7 @@ func (suite *WriterReaderTestSuite) SetupSuite() {
 	suite.writer, err = outbox.NewWriter(outboxTable)
 	suite.noError(err)
 
-	suite.reader, err = outbox.NewReader(suite.pool, outboxTable)
+	suite.reader, err = outbox.NewReader(outboxTable, suite.pool)
 	suite.noError(err)
 }
 
