@@ -3,6 +3,7 @@ package sns
 import (
 	"context"
 	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -42,6 +43,8 @@ func TestPublisherTestSuite(t *testing.T) {
 }
 
 func (suite *PublisherTestSuite) SetupSuite() {
+	os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
+
 	container, endpoint, err := containers.Localstack(ctx, "localstack/localstack:4.0.3")
 	suite.noError(err)
 	suite.container = container

@@ -10,7 +10,14 @@ import (
 
 func Localstack(ctx context.Context, img string) (testcontainers.Container, string, error) {
 	// https://golang.testcontainers.org/modules/localstack/
-	container, err := localstack.Run(ctx, img)
+
+	envCustomizer := EnvCustomizer{
+		Env: map[string]string{
+			"SERVICES": "sns,sqs",
+		},
+	}
+
+	container, err := localstack.Run(ctx, img, envCustomizer)
 	if err != nil {
 		return nil, "", fmt.Errorf("localstack.Run: %w", err)
 	}
@@ -21,4 +28,15 @@ func Localstack(ctx context.Context, img string) (testcontainers.Container, stri
 	}
 
 	return container, endpoint, nil
+}
+
+// EnvCustomizer is a customizer to set environment variables.
+type EnvCustomizer struct {
+	Env map[string]string
+}
+
+// Customize sets the environment variables in the container request.
+func (e EnvCustomizer) Customize(req *testcontainers.GenericContainerRequest) error {
+	req.Env = e.Env
+	return nil
 }
