@@ -47,24 +47,13 @@ func main() {
 		return
 	}
 
-	awsSnsCli, err := sns.NewAwsClient(ctx, region, endpoint)
+	snsCli, err := sns.NewAwsClient(ctx, region, endpoint)
 	if err != nil {
 		gErr = fmt.Errorf("sns.NewAwsClient: %w", err)
 		return
 	}
 
-	snsCli, err := sns.New(awsSnsCli)
-	if err != nil {
-		gErr = fmt.Errorf("sns.New: %w", err)
-		return
-	}
-
-	if _, err := snsCli.CreateTopic(ctx, topic); err != nil {
-		gErr = fmt.Errorf("snsCli.CreateTopic: %w", err)
-		return
-	}
-
-	publisher, err := outboxSns.NewPublisher(awsSnsCli, simpleTransformer{})
+	publisher, err := outboxSns.NewPublisher(snsCli, simpleTransformer{})
 	if err != nil {
 		gErr = fmt.Errorf("sns.NewPublisher: %w", err)
 		return

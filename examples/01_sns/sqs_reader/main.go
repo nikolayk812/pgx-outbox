@@ -10,7 +10,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/sns"
 	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/sqs"
 )
 
@@ -47,32 +46,14 @@ func main() {
 		return
 	}
 
-	qURL, qARN, err := sqsCli.CreateQueue(ctx, queue)
+	queueURL, err := sqsCli.GetQueueURL(ctx, queue)
 	if err != nil {
-		gErr = fmt.Errorf("sqsCli.CreateQueue: %w", err)
-		return
-	}
-
-	awsSnsCli, err := sns.NewAwsClient(ctx, region, endpoint)
-	if err != nil {
-		gErr = fmt.Errorf("sns.NewAwsClient: %w", err)
-		return
-	}
-
-	snsCli, err := sns.New(awsSnsCli)
-	if err != nil {
-		gErr = fmt.Errorf("sns.New: %w", err)
-		return
-	}
-
-	topicARN := fmt.Sprintf("arn:aws:sns:%s:000000000000:%s", region, topic)
-	if err := snsCli.SubscribeQueueToTopic(ctx, qARN, topicARN); err != nil {
-		gErr = fmt.Errorf("snsCli.SubscribeQueueToTopic: %w", err)
+		gErr = fmt.Errorf("sqsCli.GetQueueURL: %w", err)
 		return
 	}
 
 	for {
-		sqsMessage, err := sqsCli.ReadOneFromSQS(ctx, qURL, time.Second)
+		sqsMessage, err := sqsCli.ReadOneFromSQS(ctx, queueURL, time.Second)
 		if err != nil {
 			switch {
 			case errors.Is(err, context.DeadlineExceeded):

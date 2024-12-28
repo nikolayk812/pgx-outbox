@@ -21,3 +21,6 @@ services:
       - AWS_DEFAULT_REGION=eu-central-1
     ports:
       - "4566:4566"
+    volumes:
+      - ./localstack-init.sh:/etc/localstack/init/ready.d/localstack-init.sh
+    entrypoint: [ "docker-entrypoint.sh" ]

@@ -6,16 +6,13 @@ import (
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/localstack"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func Localstack(ctx context.Context, img string) (testcontainers.Container, string, error) {
 	// https://golang.testcontainers.org/modules/localstack/
 
-	envCustomizer := EnvCustomizer{
-		Env: map[string]string{
-			"SERVICES": "sns,sqs",
-		},
-	}
+	envCustomizer := EnvCustomizer{}
 
 	container, err := localstack.Run(ctx, img, envCustomizer)
 	if err != nil {
@@ -31,12 +28,12 @@ func Localstack(ctx context.Context, img string) (testcontainers.Container, stri
 }
 
 // EnvCustomizer is a customizer to set environment variables.
-type EnvCustomizer struct {
-	Env map[string]string
-}
+type EnvCustomizer struct{}
 
 // Customize sets the environment variables in the container request.
 func (e EnvCustomizer) Customize(req *testcontainers.GenericContainerRequest) error {
-	req.Env = e.Env
+	req.Env = map[string]string{"SERVICES": "sns,sqs"}
+	req.WaitingFor = wait.ForLog("Ready.")
+
 	return nil
 }
