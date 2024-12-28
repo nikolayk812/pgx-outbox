@@ -8,13 +8,15 @@
 
 # pgx-outbox
 
-This is a simple outbox pattern implementation for PostgreSQL using pgx driver.
+This is a simple Golang implementation for [transactional outbox](https://microservices.io/patterns/data/transactional-outbox.html) pattern for PostgreSQL using [jackc/pgx](https://github.com/jackc/pgx) driver.
 
-Motivation: avoid copy-pasting the same code in every project.
+More advanced options are described in [Revisiting the Outbox Pattern](https://www.decodable.co/blog/revisiting-the-outbox-pattern) article by [Gunnar Morling](https://github.com/gunnarmorling).
 
-Not a general use-case queue
+Motivation behind this library is to provide a generic extensible implementation to avoid boilerplate code in projects.
 
+Note: this is not a general-purpose Postgres queue, even though internal implementation is based on a table with a queue-like structure.
 
+![Diagram](./internal/diagram.jpg)
 
 ## How to use
 
@@ -84,7 +86,7 @@ See `outbox.Writer` example in [repo.go](./examples/01_sns/writer/repo.go) of th
 ```go
 forwarder, err := outbox.NewForwarderFromPool("outbox_messages", pool, publisher)
 
-stats, err := forwarder.Forward(ctx, types.MessageFilter{}, 10)
+stats, err := forwarder.Forward(ctx, 10)
 slog.Info("forwarded", "stats", stats)
 ```
 
@@ -114,13 +116,13 @@ See `outbox.Forwarder` example in [main.go](./examples/01_sns/forwarder/main.go)
 
 ## Examples
 
-please refer to the [examples/01_sns/README.md](examples/01_sns/README.md) file.
+### 1. SNS
 
-### Learning opportunities
-- pgx
-- Postgres
-- testcontainers-go
-- mockery
-- AWS SNS and SQS
-- Localstack
-- golangci-lint
+Source code and instructions for the example are located in the [examples/01_sns](examples/01_sns/README.md) directory.
+
+![Example 1 diagram](./examples/01_sns/diagram.jpg)
+
+
+## Stargazers over time
+
+[![Stargazers over time](https://starchart.cc/nikolayk812/pgx-outbox.svg?variant=adaptive)](https://starchart.cc/nikolayk812/pgx-outbox)

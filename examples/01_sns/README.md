@@ -4,7 +4,7 @@
 
 This example features three services: `Writer`, `Forwarder`, and `SQS reader`.
 
-![Project Logo](01_sns.jpg)
+![Project Logo](diagram.jpg)
 
 ### Writer
 
