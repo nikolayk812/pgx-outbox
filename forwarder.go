@@ -13,15 +13,16 @@ import (
 // It is recommended to run a single Forwarder instance per outbox table, i.e. in Kubernetes cronjob,
 // or at least to isolate Forwarder instances acting on the same outbox table by using different filters.
 type Forwarder interface {
-	Forward(ctx context.Context, filter types.MessageFilter, limit int) (types.ForwardStats, error)
+	Forward(ctx context.Context, limit int) (types.ForwardStats, error)
 }
 
 type forwarder struct {
 	reader    Reader
 	publisher Publisher
+	filter    types.MessageFilter
 }
 
-func NewForwarder(reader Reader, publisher Publisher) (Forwarder, error) {
+func NewForwarder(reader Reader, publisher Publisher, opts ...ForwardOption) (Forwarder, error) {
 	if reader == nil {
 		return nil, errors.New("reader is nil")
 	}
@@ -29,19 +30,29 @@ func NewForwarder(reader Reader, publisher Publisher) (Forwarder, error) {
 		return nil, errors.New("publisher is nil")
 	}
 
-	return &forwarder{
+	f := &forwarder{
 		reader:    reader,
 		publisher: publisher,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	if err := f.filter.Validate(); err != nil {
+		return nil, fmt.Errorf("filter.Validate: %w", err)
+	}
+
+	return f, nil
 }
 
-func NewForwarderFromPool(table string, pool *pgxpool.Pool, publisher Publisher) (Forwarder, error) {
+func NewForwarderFromPool(table string, pool *pgxpool.Pool, publisher Publisher, opts ...ForwardOption) (Forwarder, error) {
 	reader, err := NewReader(table, pool)
 	if err != nil {
 		return nil, fmt.Errorf("NewReader: %w", err)
 	}
 
-	forwarder, err := NewForwarder(reader, publisher)
+	forwarder, err := NewForwarder(reader, publisher, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("NewForwarder: %w", err)
 	}
@@ -50,10 +61,10 @@ func NewForwarderFromPool(table string, pool *pgxpool.Pool, publisher Publisher)
 }
 
 // TODO: comment.
-func (f *forwarder) Forward(ctx context.Context, filter types.MessageFilter, limit int) (types.ForwardStats, error) {
+func (f *forwarder) Forward(ctx context.Context, limit int) (types.ForwardStats, error) {
 	var fs types.ForwardStats
 
-	messages, err := f.reader.Read(ctx, filter, limit)
+	messages, err := f.reader.Read(ctx, limit)
 	if err != nil {
 		return fs, fmt.Errorf("reader.Read: %w", err)
 	}

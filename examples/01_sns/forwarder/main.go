@@ -77,7 +77,7 @@ func main() {
 	}
 
 	for {
-		stats, err := forwarder.Forward(ctx, types.MessageFilter{}, 10)
+		stats, err := forwarder.Forward(ctx, 10)
 		if err != nil {
 			gErr = fmt.Errorf("forwarder.Forward: %w", err)
 			return

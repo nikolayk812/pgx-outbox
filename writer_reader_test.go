@@ -126,7 +126,7 @@ func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 			limit := maxInt(1, len(tt.in))
 
 			// THEN
-			actual, err := suite.reader.Read(ctx, types.MessageFilter{}, limit)
+			actual, err := suite.reader.Read(ctx, limit)
 			require.NoError(t, err)
 			assertEqualMessages(t, tt.in, actual)
 
@@ -197,8 +197,11 @@ func (suite *WriterReaderTestSuite) TestReader_ReadMessage() {
 				require.NoError(t, err)
 			}
 
+			reader, err := outbox.NewReader(outboxTable, suite.pool, outbox.WithReadFilter(tt.filter))
+			require.NoError(t, err)
+
 			// WHEN
-			actual, err := suite.reader.Read(ctx, tt.filter, tt.limit)
+			actual, err := reader.Read(ctx, tt.limit)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -292,7 +295,7 @@ func (suite *WriterReaderTestSuite) TestWriter_MarkMessage() {
 			// WHEN-2
 			limit := maxInt(1, len(tt.in))
 
-			actual, err := suite.reader.Read(ctx, types.MessageFilter{}, limit)
+			actual, err := suite.reader.Read(ctx, limit)
 
 			// THEN-2
 			require.NoError(t, err)
@@ -413,10 +416,9 @@ func (suite *WriterReaderTestSuite) write(message types.Message) (_ int64, txErr
 func (suite *WriterReaderTestSuite) markAll() {
 	suite.T().Helper()
 
-	emptyFilter := types.MessageFilter{}
 	maxLimit := 100
 
-	actual, err := suite.reader.Read(ctx, emptyFilter, maxLimit)
+	actual, err := suite.reader.Read(ctx, maxLimit)
 	suite.noError(err)
 
 	ids := types.Messages(actual).IDs()
@@ -425,7 +427,7 @@ func (suite *WriterReaderTestSuite) markAll() {
 	suite.Len(ids, affected)
 
 	// THEN nothing cannot be found anymore
-	actual, err = suite.reader.Read(ctx, emptyFilter, maxLimit)
+	actual, err = suite.reader.Read(ctx, maxLimit)
 	suite.noError(err)
 	suite.Empty(actual)
 }

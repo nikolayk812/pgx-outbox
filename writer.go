@@ -19,7 +19,7 @@ import (
 type Writer interface {
 	// Write writes the message to the outbox table.
 	// It returns the ID of the newly inserted message.
-	Write(ctx context.Context, tx types.Tx, message types.Message) (int64, error)
+	Write(ctx context.Context, tx Tx, message types.Message) (int64, error)
 }
 
 type writer struct {
@@ -38,7 +38,7 @@ func NewWriter(table string) (Writer, error) {
 // - tx is nil or unsupported
 // - message is invalid
 // - write operation fails.
-func (w *writer) Write(ctx context.Context, tx types.Tx, message types.Message) (int64, error) {
+func (w *writer) Write(ctx context.Context, tx Tx, message types.Message) (int64, error) {
 	if tx == nil {
 		return 0, errors.New("tx is nil")
 	}
@@ -71,7 +71,11 @@ func (w *writer) Write(ctx context.Context, tx types.Tx, message types.Message) 
 	return id, nil
 }
 
-func queryRow(ctx context.Context, tx types.Tx, q string, args ...interface{}) (pgx.Row, error) {
+// Tx is a transaction interface to support both and pgx.Tx and *sql.Tx.
+// As pgx.Tx and *sql.Tx do not have common method signatures, this is empty interface.
+type Tx interface{}
+
+func queryRow(ctx context.Context, tx Tx, q string, args ...interface{}) (pgx.Row, error) {
 	if tx == nil {
 		return nil, errors.New("tx is nil")
 	}

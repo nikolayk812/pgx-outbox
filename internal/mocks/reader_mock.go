@@ -43,9 +43,9 @@ func (_m *Reader) Ack(ctx context.Context, ids []int64) (int, error) {
 	return r0, r1
 }
 
-// Read provides a mock function with given fields: ctx, filter, limit
-func (_m *Reader) Read(ctx context.Context, filter types.MessageFilter, limit int) ([]types.Message, error) {
-	ret := _m.Called(ctx, filter, limit)
+// Read provides a mock function with given fields: ctx, limit
+func (_m *Reader) Read(ctx context.Context, limit int) ([]types.Message, error) {
+	ret := _m.Called(ctx, limit)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Read")
@@ -53,19 +53,19 @@ func (_m *Reader) Read(ctx context.Context, filter types.MessageFilter, limit in
 
 	var r0 []types.Message
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, types.MessageFilter, int) ([]types.Message, error)); ok {
-		return rf(ctx, filter, limit)
+	if rf, ok := ret.Get(0).(func(context.Context, int) ([]types.Message, error)); ok {
+		return rf(ctx, limit)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, types.MessageFilter, int) []types.Message); ok {
-		r0 = rf(ctx, filter, limit)
+	if rf, ok := ret.Get(0).(func(context.Context, int) []types.Message); ok {
+		r0 = rf(ctx, limit)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]types.Message)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, types.MessageFilter, int) error); ok {
-		r1 = rf(ctx, filter, limit)
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, limit)
 	} else {
 		r1 = ret.Error(1)
 	}

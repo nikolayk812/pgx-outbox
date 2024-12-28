@@ -19,11 +19,9 @@ import (
 // Read and Ack happen in different transactions.
 type Reader interface {
 	// Read reads unpublished messages from the outbox table that match the filter.
-	// filter is provided for flexibility to enable multiple readers reading the same outbox table,
-	// otherwise default empty filter can be used.
 	// limit is the maximum number of messages to read.
 	// Limit and frequency of Read invocations should be considered carefully to avoid overloading the database.
-	Read(ctx context.Context, filter types.MessageFilter, limit int) ([]types.Message, error)
+	Read(ctx context.Context, limit int) ([]types.Message, error)
 
 	// Ack acknowledges / marks the messages by ids as published in a single transaction.
 	// ids can be obtained from the Read method output.
@@ -32,11 +30,12 @@ type Reader interface {
 }
 
 type reader struct {
-	pool  *pgxpool.Pool
-	table string
+	pool   *pgxpool.Pool
+	table  string
+	filter types.MessageFilter
 }
 
-func NewReader(table string, pool *pgxpool.Pool) (Reader, error) {
+func NewReader(table string, pool *pgxpool.Pool, opts ...ReadOption) (Reader, error) {
 	if pool == nil {
 		return nil, errors.New("pool is nil")
 	}
@@ -44,26 +43,27 @@ func NewReader(table string, pool *pgxpool.Pool) (Reader, error) {
 		return nil, errors.New("table is empty")
 	}
 
-	return &reader{
+	r := &reader{
 		pool:  pool,
 		table: table,
-	}, nil
+	}
+
+	if err := r.filter.Validate(); err != nil {
+		return nil, fmt.Errorf("filter.Validate: %w", err)
+	}
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	return r, nil
 }
 
 // Read returns unpublished messages sorted by ID in ascending order.
 // returns an error if
-// - filter is invalid
 // - limit is LTE 0
 // - SQL query building or DB call fails.
-func (r *reader) Read(
-	ctx context.Context,
-	filter types.MessageFilter,
-	limit int,
-) ([]types.Message, error) {
-	if err := filter.Validate(); err != nil {
-		return nil, fmt.Errorf("filter.Validate: %w", err)
-	}
-
+func (r *reader) Read(ctx context.Context, limit int) ([]types.Message, error) {
 	if limit <= 0 {
 		return nil, fmt.Errorf("limit must be GT 0, got %d", limit)
 	}
@@ -73,7 +73,7 @@ func (r *reader) Read(
 		From(r.table).
 		Where(sq.Eq{"published_at": nil})
 
-	sb = whereFilter(sb, filter)
+	sb = whereFilter(sb, r.filter)
 
 	sb = sb.OrderBy("id ASC").Limit(uint64(limit))
 
