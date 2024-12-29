@@ -13,7 +13,7 @@ import (
 )
 
 type Client interface {
-	CreateQueue(ctx context.Context, queueName string) (qURL string, qARN string, err error)
+	GetQueueURL(ctx context.Context, queueName string) (string, error)
 	ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (types.Message, error)
 	ExtractOutboxPayload(message types.Message) ([]byte, error)
 }
@@ -31,37 +31,18 @@ func New(cfg aws.Config) (Client, error) {
 	return &client{cli: cli}, nil
 }
 
-func (c *client) CreateQueue(ctx context.Context, queueName string) (qURL string, qARN string, _ error) {
-	createOutput, err := c.cli.CreateQueue(ctx, &awsSqs.CreateQueueInput{
+func (c *client) GetQueueURL(ctx context.Context, queueName string) (string, error) {
+	output, err := c.cli.GetQueueUrl(ctx, &awsSqs.GetQueueUrlInput{
 		QueueName: aws.String(queueName),
 	})
 	if err != nil {
-		return "", "", fmt.Errorf("cli.CreateQueue: %w", err)
+		return "", fmt.Errorf("cli.GetQueueUrl: %w", err)
 	}
-	if createOutput == nil {
-		return "", "", fmt.Errorf("cli.CreateQueue: output is nil")
-	}
-	if createOutput.QueueUrl == nil {
-		return "", "", fmt.Errorf("cli.CreateQueue: output.QueueUrl is nil")
+	if output == nil || output.QueueUrl == nil {
+		return "", fmt.Errorf("cli.GetQueueUrl: output or QueueUrl is nil")
 	}
 
-	queueUrl := *createOutput.QueueUrl
-
-	// Get the queue ARN which is weirdly not part of CreateQueue output
-	attributesOutput, err := c.cli.GetQueueAttributes(ctx, &awsSqs.GetQueueAttributesInput{
-		QueueUrl:       aws.String(queueUrl),
-		AttributeNames: []types.QueueAttributeName{types.QueueAttributeNameQueueArn},
-	})
-	if err != nil {
-		return "", "", fmt.Errorf("cli.GetQueueAttributes: %w", err)
-	}
-	if attributesOutput == nil {
-		return "", "", fmt.Errorf("cli.GetQueueAttributes: output is nil")
-	}
-
-	queueArn := attributesOutput.Attributes[string(types.QueueAttributeNameQueueArn)]
-
-	return queueUrl, queueArn, nil
+	return *output.QueueUrl, nil
 }
 
 func (c *client) ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (m types.Message, _ error) {

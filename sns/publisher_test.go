@@ -2,6 +2,7 @@ package sns
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -14,7 +15,6 @@ import (
 	outbox "github.com/nikolayk812/pgx-outbox"
 	"github.com/nikolayk812/pgx-outbox/internal/containers"
 	"github.com/nikolayk812/pgx-outbox/internal/fakes"
-	"github.com/nikolayk812/pgx-outbox/sns/internal/sns"
 	"github.com/nikolayk812/pgx-outbox/sns/internal/sqs"
 	"github.com/nikolayk812/pgx-outbox/types"
 	"github.com/stretchr/testify/assert"
@@ -25,6 +25,7 @@ import (
 
 const (
 	region = "eu-central-1"
+	topic  = "topic1"
 )
 
 var ctx = context.Background()
@@ -32,7 +33,6 @@ var ctx = context.Background()
 type PublisherTestSuite struct {
 	suite.Suite
 	container testcontainers.Container
-	snsClient sns.Client
 	sqsClient sqs.Client
 
 	publisher outbox.Publisher
@@ -45,7 +45,7 @@ func TestPublisherTestSuite(t *testing.T) {
 func (suite *PublisherTestSuite) SetupSuite() {
 	os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
 
-	container, endpoint, err := containers.Localstack(ctx, "localstack/localstack:4.0.3")
+	container, endpoint, err := containers.Localstack(ctx, "localstack/localstack:4.0.3", "sns,sqs")
 	suite.noError(err)
 	suite.container = container
 
@@ -56,9 +56,6 @@ func (suite *PublisherTestSuite) SetupSuite() {
 
 	awsSnsCli := awsSns.NewFromConfig(cfg)
 	suite.Require().NotNil(awsSnsCli)
-
-	suite.snsClient, err = sns.New(awsSnsCli)
-	suite.noError(err)
 
 	suite.sqsClient, err = sqs.New(cfg)
 	suite.noError(err)
@@ -78,16 +75,11 @@ func (suite *PublisherTestSuite) TearDownSuite() {
 }
 
 func (suite *PublisherTestSuite) TestPublisher_Publish() {
-	topicArn, err := suite.snsClient.CreateTopic(ctx, "topic1")
-	suite.noError(err)
-
-	queueURL, queueARN, err := suite.sqsClient.CreateQueue(ctx, "queue1")
-	suite.noError(err)
-
-	suite.noError(suite.snsClient.SubscribeQueueToTopic(ctx, queueARN, topicArn))
-
 	msg1 := fakes.FakeMessage()
-	msg1.Topic = topicArn
+	msg1.Topic = fmt.Sprintf("arn:aws:sns:%s:000000000000:%s", region, topic)
+
+	queueURL, err := suite.sqsClient.GetQueueURL(ctx, "queue1")
+	suite.noError(err)
 
 	tests := []struct {
 		name    string
