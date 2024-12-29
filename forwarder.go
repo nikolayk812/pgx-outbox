@@ -11,7 +11,7 @@ import (
 
 // Forwarder reads unpublished messages from the outbox table, publishes them and then marks them as published.
 // It is recommended to run a single Forwarder instance per outbox table, i.e. in Kubernetes cronjob,
-// or at least to isolate Forwarder instances acting on the same outbox table by using different filters.
+// or at least to isolate different Forwarder instances acting on the same outbox table by using different filters in outbox.Reader.
 type Forwarder interface {
 	Forward(ctx context.Context, limit int) (types.ForwardStats, error)
 }
@@ -60,7 +60,15 @@ func NewForwarderFromPool(table string, pool *pgxpool.Pool, publisher Publisher,
 	return forwarder, nil
 }
 
-// TODO: comment.
+// Forward reads unpublished messages from the outbox table according to the limit and filter in outbox.Reader,
+// publishes them and then marks them as published in the outbox table.
+// It returns the number of messages read, published and acknowledged.
+// If any of the messages fail to be published, the function returns an error immediately.
+// It means that the messages published before the error occurred will be not be acknowledged
+// and will be published again on the next run.
+// If a message cannot be published for any reason, it would block the forwarder from making progress.
+// Hence, the forwarder progress (running in a cronjob) should be monitored and
+// an action should be taken if it stops making progress, i.e. removing a poison message from the outbox table manually.
 func (f *forwarder) Forward(ctx context.Context, limit int) (types.ForwardStats, error) {
 	var fs types.ForwardStats
 

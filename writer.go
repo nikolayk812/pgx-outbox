@@ -14,7 +14,7 @@ import (
 
 // Writer writes outbox messages to a single outbox table.
 // To write messages to multiple outbox tables, create multiple Writer instances.
-// An outbox message must be written in the same transaction as the business data,
+// An outbox message must be written in the same transaction as business entities,
 // hence the tx argument which supports both pgx.Tx and *sql.Tx.
 // Implementations must be safe for concurrent use by multiple goroutines.
 type Writer interface {
@@ -22,12 +22,15 @@ type Writer interface {
 	// It returns the ID of the newly inserted message.
 	Write(ctx context.Context, tx Tx, message types.Message) (int64, error)
 
+	// WriteBatch writes multiple messages to the outbox table.
+	// It returns the IDs of the newly inserted messages.
+	// It returns an error if any of the messages fail to write.
 	WriteBatch(ctx context.Context, tx pgx.Tx, messages []types.Message) ([]int64, error)
 }
 
 type writer struct {
-	table                             string
-	disablePreparedStatementsForBatch bool
+	table            string
+	usePreparedBatch bool
 }
 
 func NewWriter(table string, opts ...WriteOption) (Writer, error) {
@@ -35,7 +38,10 @@ func NewWriter(table string, opts ...WriteOption) (Writer, error) {
 		return nil, ErrTableEmpty
 	}
 
-	w := &writer{table: table}
+	w := &writer{
+		table:            table,
+		usePreparedBatch: true,
+	}
 
 	for _, opt := range opts {
 		opt(w)
@@ -81,6 +87,13 @@ func (w *writer) Write(ctx context.Context, tx Tx, message types.Message) (int64
 	return id, nil
 }
 
+// WriteBatch uses batching feature of the pgx driver,
+// by default it uses prepared statements for batch writes, but it can be disabled using WithDisablePreparedBatch option.
+// WriteBatch returns an error if
+// - tx is nil
+// - any message is invalid
+// - write operation fails.
+//
 //nolint:cyclop
 func (w *writer) WriteBatch(ctx context.Context, tx pgx.Tx, messages []types.Message) (_ []int64, txErr error) {
 	if tx == nil {
@@ -105,7 +118,7 @@ func (w *writer) WriteBatch(ctx context.Context, tx pgx.Tx, messages []types.Mes
 
 	query := fmt.Sprintf("INSERT INTO %s (broker, topic, metadata, payload) VALUES ($1, $2, $3, $4) RETURNING id", w.table)
 
-	if !w.disablePreparedStatementsForBatch {
+	if w.usePreparedBatch {
 		prepareStatementName := fmt.Sprintf("%s_write_batch_%d", w.table, time.Now().UnixMilli())
 
 		_, err := tx.Prepare(ctx, prepareStatementName, query)

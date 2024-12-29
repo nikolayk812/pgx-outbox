@@ -4,9 +4,9 @@ import "github.com/nikolayk812/pgx-outbox/types"
 
 type WriteOption func(*writer)
 
-func WithDisablePreparedStatementsForBatch() WriteOption {
+func WithDisablePreparedBatch() WriteOption {
 	return func(w *writer) {
-		w.disablePreparedStatementsForBatch = true
+		w.usePreparedBatch = false
 	}
 }
 

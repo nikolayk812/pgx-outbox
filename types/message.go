@@ -5,11 +5,20 @@ import (
 )
 
 type Message struct {
-	ID       int64
-	Broker   string `validate:"required"`
-	Topic    string `validate:"required"`
+	// ID is assigned by Postgres database after calling a Write method of outbox.Writer.
+	ID int64
+
+	// Broker is the name of the message broker, i.e. "kafka", "sns", etc.
+	Broker string `validate:"required"`
+
+	// Topic is the name or id (i.e. AWS ARN) of the message topic where the message will be published.
+	Topic string `validate:"required"`
+
+	// Metadata is optional map to implement outbox.Publisher interface more flexibly.
 	Metadata map[string]string
-	Payload  []byte `validate:"required,json"`
+
+	// Payload is the message body, ideally it should be published as is, but can be transformed in outbox.Publisher.
+	Payload []byte `validate:"required,json"`
 }
 
 func (m *Message) Validate() error {
