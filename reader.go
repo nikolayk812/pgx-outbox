@@ -40,7 +40,7 @@ func NewReader(table string, pool *pgxpool.Pool, opts ...ReadOption) (Reader, er
 		return nil, errors.New("pool is nil")
 	}
 	if table == "" {
-		return nil, errors.New("table is empty")
+		return nil, ErrTableEmpty
 	}
 
 	r := &reader{

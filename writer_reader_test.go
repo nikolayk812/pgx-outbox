@@ -42,6 +42,8 @@ func TestWriterReaderTestSuite(t *testing.T) {
 }
 
 func (suite *WriterReaderTestSuite) SetupSuite() {
+	suite.noError(os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true"))
+
 	container, connStr, err := containers.Postgres(ctx, "postgres:17.2-alpine3.21")
 	suite.noError(err)
 	suite.container = container
@@ -122,6 +124,84 @@ func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 				require.NoError(t, err)
 				assert.Positive(t, id)
 			}
+
+			limit := maxInt(1, len(tt.in))
+
+			// THEN
+			actual, err := suite.reader.Read(ctx, limit)
+			require.NoError(t, err)
+			assertEqualMessages(t, tt.in, actual)
+
+			suite.markAll()
+		})
+	}
+}
+
+func (suite *WriterReaderTestSuite) TestWriter_WriteMessagesBatch() {
+	invalidMessage := fakes.FakeMessage()
+	invalidMessage.Broker = ""
+
+	tests := []struct {
+		name    string
+		in      []types.Message
+		wantLen int
+		wantErr bool
+	}{
+		{
+			name:    "no messages",
+			in:      []types.Message{},
+			wantLen: 0,
+		},
+		{
+			name: "single message",
+			in: []types.Message{
+				fakes.FakeMessage(),
+			},
+			wantLen: 1,
+		},
+		{
+			name: "two in",
+			in: []types.Message{
+				fakes.FakeMessage(),
+				fakes.FakeMessage(),
+			},
+			wantLen: 2,
+		},
+		{
+			name: "five in",
+			in: []types.Message{
+				fakes.FakeMessage(),
+				fakes.FakeMessage(),
+				fakes.FakeMessage(),
+				fakes.FakeMessage(),
+				fakes.FakeMessage(),
+			},
+			wantLen: 5,
+		},
+		{
+			name: "invalid message",
+			in: []types.Message{
+				invalidMessage,
+			},
+			wantLen: 0,
+			wantErr: true,
+		},
+		// Add more test cases as needed
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			// GIVEN
+
+			ids, err := suite.writeBatch(tt.in)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Len(t, ids, tt.wantLen)
 
 			limit := maxInt(1, len(tt.in))
 
@@ -306,12 +386,6 @@ func (suite *WriterReaderTestSuite) TestWriter_MarkMessage() {
 	}
 }
 
-func TestMain(m *testing.M) {
-	os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
-
-	os.Exit(m.Run())
-}
-
 type payload struct {
 	Content string `json:"content"`
 }
@@ -411,6 +485,25 @@ func (suite *WriterReaderTestSuite) write(message types.Message) (_ int64, txErr
 	}
 
 	return id, nil
+}
+
+func (suite *WriterReaderTestSuite) writeBatch(messages []types.Message) (_ []int64, txErr error) {
+	tx, commitFunc, err := suite.beginTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("beginTx: %w", err)
+	}
+	defer func() {
+		if err := commitFunc(txErr); err != nil {
+			txErr = fmt.Errorf("commitFunc: %w", err)
+		}
+	}()
+
+	ids, err := suite.writer.WriteBatch(ctx, tx, messages)
+	if err != nil {
+		return nil, fmt.Errorf("writer.Write: %w", err)
+	}
+
+	return ids, nil
 }
 
 func (suite *WriterReaderTestSuite) markAll() {

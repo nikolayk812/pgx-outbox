@@ -2,6 +2,14 @@ package outbox
 
 import "github.com/nikolayk812/pgx-outbox/types"
 
+type WriteOption func(*writer)
+
+func WithDisablePreparedStatementsForBatch() WriteOption {
+	return func(w *writer) {
+		w.disablePreparedStatementsForBatch = true
+	}
+}
+
 type ReadOption func(*reader)
 
 func WithReadFilter(filter types.MessageFilter) ReadOption {

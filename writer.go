@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
@@ -20,18 +21,27 @@ type Writer interface {
 	// Write writes the message to the outbox table.
 	// It returns the ID of the newly inserted message.
 	Write(ctx context.Context, tx Tx, message types.Message) (int64, error)
+
+	WriteBatch(ctx context.Context, tx pgx.Tx, messages []types.Message) ([]int64, error)
 }
 
 type writer struct {
-	table string
+	table                             string
+	disablePreparedStatementsForBatch bool
 }
 
-func NewWriter(table string) (Writer, error) {
+func NewWriter(table string, opts ...WriteOption) (Writer, error) {
 	if table == "" {
-		return nil, errors.New("table is empty")
+		return nil, ErrTableEmpty
 	}
 
-	return &writer{table: table}, nil
+	w := &writer{table: table}
+
+	for _, opt := range opts {
+		opt(w)
+	}
+
+	return w, nil
 }
 
 // Write returns an error if
@@ -40,7 +50,7 @@ func NewWriter(table string) (Writer, error) {
 // - write operation fails.
 func (w *writer) Write(ctx context.Context, tx Tx, message types.Message) (int64, error) {
 	if tx == nil {
-		return 0, errors.New("tx is nil")
+		return 0, ErrTxNil
 	}
 
 	if err := message.Validate(); err != nil {
@@ -69,6 +79,68 @@ func (w *writer) Write(ctx context.Context, tx Tx, message types.Message) (int64
 	}
 
 	return id, nil
+}
+
+//nolint:cyclop
+func (w *writer) WriteBatch(ctx context.Context, tx pgx.Tx, messages []types.Message) (_ []int64, txErr error) {
+	if tx == nil {
+		return nil, ErrTxNil
+	}
+
+	if len(messages) == 0 {
+		return nil, nil
+	}
+
+	if err := types.Messages(messages).Validate(); err != nil {
+		return nil, fmt.Errorf("messages.Validate: %w", err)
+	}
+
+	if len(messages) == 1 {
+		id, err := w.Write(ctx, tx, messages[0])
+		if err != nil {
+			return nil, fmt.Errorf("w.Write: %w", err)
+		}
+		return []int64{id}, nil
+	}
+
+	query := fmt.Sprintf("INSERT INTO %s (broker, topic, metadata, payload) VALUES ($1, $2, $3, $4) RETURNING id", w.table)
+
+	if !w.disablePreparedStatementsForBatch {
+		prepareStatementName := fmt.Sprintf("%s_write_batch_%d", w.table, time.Now().UnixMilli())
+
+		_, err := tx.Prepare(ctx, prepareStatementName, query)
+		if err != nil {
+			return nil, fmt.Errorf("tx.Prepare: %w", err)
+		}
+
+		query = prepareStatementName
+	}
+
+	batch := &pgx.Batch{}
+	for _, message := range messages {
+		batch.Queue(query,
+			message.Broker, message.Topic, message.Metadata, string(message.Payload))
+	}
+
+	br := tx.SendBatch(ctx, batch)
+	defer func() {
+		if err := br.Close(); err != nil {
+			txErr = fmt.Errorf("br.Close: %w", err)
+		}
+	}()
+
+	// Collect all returned IDs
+	ids := make([]int64, 0, len(messages))
+	for range messages {
+		row := br.QueryRow()
+		var id int64
+		if err := row.Scan(&id); err != nil {
+			return nil, fmt.Errorf("row.Scan: %w", err)
+		}
+		ids = append(ids, id)
+	}
+
+	return ids, nil
 }
 
 // Tx is a transaction interface to support both and pgx.Tx and *sql.Tx.

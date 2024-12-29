@@ -33,4 +33,14 @@ func (m Messages) IDs() []int64 {
 	return ids
 }
 
+func (m Messages) Validate() error {
+	for idx, msg := range m {
+		if err := msg.Validate(); err != nil {
+			return fmt.Errorf("msg.Validate idx[%d]: %w", idx, err)
+		}
+	}
+
+	return nil
+}
+
 type ToMessageFunc[T any] func(entity T) (Message, error)
