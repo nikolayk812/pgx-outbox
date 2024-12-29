@@ -3,6 +3,8 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/nikolayk812/pgx-outbox.svg)](https://pkg.go.dev/github.com/nikolayk812/pgx-outbox)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 [![Coverage Status](https://coveralls.io/repos/github/nikolayk812/pgx-outbox/badge.svg)](https://coveralls.io/github/nikolayk812/pgx-outbox)
+[![Dependabot Status](https://img.shields.io/badge/dependencies-up%20to%20date-brightgreen.svg)](https://github.com/nikolayk812/pgx-outbox/network/updates)
+
 
 ![Project Logo](./internal/logo.png)
 
