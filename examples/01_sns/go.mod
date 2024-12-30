@@ -11,7 +11,7 @@ require (
 	github.com/brianvoe/gofakeit v3.18.0+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/nikolayk812/pgx-outbox v0.0.0-20241226101704-85a5e4ad7eff
+	github.com/nikolayk812/pgx-outbox v0.0.1
 	github.com/nikolayk812/pgx-outbox/sns v0.0.0-20241226101704-85a5e4ad7eff
 )
 
