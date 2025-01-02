@@ -1,10 +1,12 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/spf13/viper"
 	"log"
 	"log/slog"
 	"os"
@@ -14,10 +16,9 @@ import (
 )
 
 const (
-	region   = "eu-central-1"
-	endpoint = "http://localhost:4566"
-	topic    = "topic1"
-	queue    = "queue1"
+	region          = "eu-central-1"
+	defaultEndpoint = "http://localhost:4566"
+	queue           = "queue1"
 )
 
 func main() {
@@ -32,9 +33,13 @@ func main() {
 		os.Exit(0)
 	}()
 
+	viper.AutomaticEnv()
+
+	localstackEndpoint := cmp.Or(viper.GetString("LOCALSTACK_ENDPOINT"), defaultEndpoint)
+
 	ctx := context.Background()
 
-	awsSqsCli, err := sqs.NewAwsClient(ctx, region, endpoint)
+	awsSqsCli, err := sqs.NewAwsClient(ctx, region, localstackEndpoint)
 	if err != nil {
 		gErr = fmt.Errorf("sqs.NewAwsClient: %w", err)
 		return
@@ -51,6 +56,8 @@ func main() {
 		gErr = fmt.Errorf("sqsCli.GetQueueURL: %w", err)
 		return
 	}
+
+	slog.Info("SQS-Reader Ready")
 
 	for {
 		sqsMessage, err := sqsCli.ReadOneFromSQS(ctx, queueURL, time.Second)

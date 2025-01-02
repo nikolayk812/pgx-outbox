@@ -24,9 +24,8 @@ const (
 	outboxTable    = "outbox_messages"
 
 	// Localstack
-	region   = "eu-central-1"
-	endpoint = "http://localhost:4566"
-	topic    = "topic1"
+	region          = "eu-central-1"
+	defaultEndpoint = "http://localhost:4566"
 )
 
 func main() {
@@ -44,6 +43,7 @@ func main() {
 	viper.AutomaticEnv()
 
 	dbURL := cmp.Or(viper.GetString("DB_URL"), defaultConnStr)
+	localstackEndpoint := cmp.Or(viper.GetString("LOCALSTACK_ENDPOINT"), defaultEndpoint)
 
 	ctx := context.Background()
 
@@ -53,7 +53,7 @@ func main() {
 		return
 	}
 
-	snsCli, err := sns.NewAwsClient(ctx, region, endpoint)
+	snsCli, err := sns.NewAwsClient(ctx, region, localstackEndpoint)
 	if err != nil {
 		gErr = fmt.Errorf("sns.NewAwsClient: %w", err)
 		return
@@ -70,6 +70,8 @@ func main() {
 		gErr = fmt.Errorf("outbox.NewForwarder: %w", err)
 		return
 	}
+
+	slog.Info("Forwarder Ready")
 
 	for {
 		stats, err := forwarder.Forward(ctx, 10)

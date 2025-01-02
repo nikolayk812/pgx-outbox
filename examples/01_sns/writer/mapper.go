@@ -8,6 +8,8 @@ import (
 	outbox "github.com/nikolayk812/pgx-outbox/types"
 )
 
+const EventTypeUserCreated = "user_created"
+
 func userToMessage(user User) (m outbox.Message, _ error) {
 	payload := UserMessagePayload{
 		ID:        user.ID,
@@ -15,7 +17,7 @@ func userToMessage(user User) (m outbox.Message, _ error) {
 		Age:       user.Age,
 		CreatedAt: user.CreatedAt,
 		Quote:     gofakeit.Quote(),
-		EventType: "user_created",
+		EventType: EventTypeUserCreated,
 	}
 
 	payloadBytes, err := json.Marshal(payload)

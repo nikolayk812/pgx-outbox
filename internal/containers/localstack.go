@@ -13,19 +13,20 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func Localstack(ctx context.Context, img, services string) (testcontainers.Container, string, error) {
+func Localstack(ctx context.Context, img, services, network string) (testcontainers.Container, string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, "", fmt.Errorf("os.Getwd: %w", err)
 	}
 
-	envCustomizer := EnvCustomizer{
+	cc := customizer{
 		Services:   services,
 		WorkingDir: cwd,
+		Network:    network,
 	}
 
 	// https://golang.testcontainers.org/modules/localstack/
-	cont, err := localstack.Run(ctx, img, envCustomizer)
+	cont, err := localstack.Run(ctx, img, cc)
 	if err != nil {
 		return nil, "", fmt.Errorf("localstack.Run: %w", err)
 	}
@@ -38,12 +39,13 @@ func Localstack(ctx context.Context, img, services string) (testcontainers.Conta
 	return cont, endpoint, nil
 }
 
-type EnvCustomizer struct {
+type customizer struct {
 	Services   string
 	WorkingDir string
+	Network    string
 }
 
-func (e EnvCustomizer) Customize(req *testcontainers.GenericContainerRequest) error {
+func (e customizer) Customize(req *testcontainers.GenericContainerRequest) error {
 	req.Env = map[string]string{"SERVICES": e.Services}
 
 	// This has to match the log message from the initialization script, otherwise "Ready." can be used.
@@ -61,10 +63,22 @@ func (e EnvCustomizer) Customize(req *testcontainers.GenericContainerRequest) er
 		hostConfig.Binds = append(hostConfig.Binds, fmt.Sprintf("%s:/etc/localstack/init/ready.d/localstack-init.sh", absPath))
 	}
 
+	if e.Network != "" {
+		req.Networks = []string{e.Network}
+		req.NetworkAliases = map[string][]string{
+			e.Network: {"localstack"},
+		}
+	}
+
 	return nil
 }
 
 func resolveDir(workingDir string) string {
-	workingDir = strings.TrimSuffix(workingDir, "/sns")
+	// trim everything after /pgx-outbox
+	parts := strings.Split(workingDir, "/pgx-outbox")
+	if len(parts) > 1 {
+		workingDir = parts[0] + "/pgx-outbox"
+	}
+
 	return fmt.Sprintf("%s/internal/containers/", workingDir)
 }
