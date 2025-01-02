@@ -12,15 +12,13 @@ build:
 test:
 	$(RYUK) go test $(PACKAGES) -v -race \;
 
-cover:
-	make cover-ci
+cover: cover-ci
 	go tool cover -html=coverage.out -o coverage.html
 	open -a "Google Chrome" coverage.html
 
 cover-ci:
 	$(RYUK) go test $(COVER_PACKAGES) -v -coverprofile=coverage.out
 	go tool cover -func=coverage.out
-
 
 generate:
 	go generate ./...
@@ -33,11 +31,7 @@ fix-lint:
 	go mod tidy
 
 
-lint:
-	make generate
-	make fix-lint
+lint: generate fix-lint
 	golangci-lint run -v
 
-push-check:
-	make lint
-	make test
+push-check: lint test

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"github.com/spf13/viper"
 	"log/slog"
 	"os"
 	"time"
@@ -14,9 +16,9 @@ import (
 )
 
 const (
-	connStr     = "postgres://user:password@localhost:5432/dbname"
-	outboxTable = "outbox_messages"
-	topic       = "topic1"
+	defaultConnStr = "postgres://user:password@localhost:5432/dbname"
+	outboxTable    = "outbox_messages"
+	topic          = "topic1"
 )
 
 func main() {
@@ -31,6 +33,10 @@ func main() {
 		os.Exit(0)
 	}()
 
+	viper.AutomaticEnv()
+
+	dbURL := cmp.Or(viper.GetString("DB_URL"), defaultConnStr)
+
 	writer, err := outbox.NewWriter(outboxTable)
 	if err != nil {
 		gErr = fmt.Errorf("outbox.NewWriter: %w", err)
@@ -39,7 +45,7 @@ func main() {
 
 	ctx := context.Background()
 
-	pool, err := pgxpool.New(ctx, connStr)
+	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
 		gErr = fmt.Errorf("pgxpool.New: %w", err)
 		return
@@ -50,6 +56,8 @@ func main() {
 		gErr = fmt.Errorf("NewRepo: %w", err)
 		return
 	}
+
+	slog.Info("Writer Ready")
 
 	for {
 		user := User{

@@ -4,6 +4,8 @@
 
 This example features three services: `Writer`, `Forwarder`, and `SQS reader`.
 
+Postgres and SNS/SQS are started in (Docker) containers using `docker-compose`. SNS/SQS run inside Localstack container, which is an emulation of AWS services.
+
 ![Project Logo](diagram.jpg)
 
 ### Writer
@@ -16,13 +18,12 @@ In the real world, the `Writer` could be a business service: `user-service`.
 ### Forwarder
 
 Reads messages from the `outbox_messages` table, transforms and publishes them to the SNS topic.
-It is responsible for creating the SNS topic in the Localstack container, which is an emulation of the AWS services.
 
 In the real world, the `Forwarder` could be a background job of the `user-service`, i.e. a cronjob in a Kubernetes cluster.
 
 ### SQS reader
 
-Creates a SQS queue, subscribes it to the SNS topic, and reads messages from the queue.
+Reads messages from the queue.
 
 In the real world, the `SQS reader` could be another business service, i.e. `cart-service` which is interested in the events of the `user-service`.
 

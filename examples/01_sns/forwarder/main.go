@@ -1,8 +1,10 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"github.com/spf13/viper"
 	"log/slog"
 	"os"
 	"time"
@@ -18,8 +20,8 @@ import (
 
 const (
 	// Postgres
-	connStr     = "postgres://user:password@localhost:5432/dbname"
-	outboxTable = "outbox_messages"
+	defaultConnStr = "postgres://user:password@localhost:5432/dbname"
+	outboxTable    = "outbox_messages"
 
 	// Localstack
 	region   = "eu-central-1"
@@ -39,9 +41,13 @@ func main() {
 		os.Exit(0)
 	}()
 
+	viper.AutomaticEnv()
+
+	dbURL := cmp.Or(viper.GetString("DB_URL"), defaultConnStr)
+
 	ctx := context.Background()
 
-	pool, err := pgxpool.New(ctx, connStr)
+	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
 		gErr = fmt.Errorf("pgxpool.New: %w", err)
 		return
