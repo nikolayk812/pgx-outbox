@@ -70,6 +70,45 @@ func (suite *WriterReaderTestSuite) TearDownSuite() {
 	goleak.VerifyNone(suite.T())
 }
 
+func (suite *WriterReaderTestSuite) TestWriter_New() {
+	tests := []struct {
+		name    string
+		table   string
+		options []outbox.WriteOption
+		wantErr error
+	}{
+		{
+			name:    "empty table",
+			table:   "",
+			wantErr: outbox.ErrTableEmpty,
+		},
+		{
+			name:  "non-empty table",
+			table: "outbox_messages",
+		},
+		{
+			name:    "with options",
+			table:   "outbox_messages",
+			options: []outbox.WriteOption{outbox.WithDisablePreparedBatch()},
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			writer, err := outbox.NewWriter(tt.table, tt.options...)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.NotNil(t, writer)
+		})
+	}
+}
+
 func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 	invalidMessage := fakes.FakeMessage()
 	invalidMessage.Broker = ""
@@ -515,4 +554,48 @@ func maxInt(x, y int) int {
 		return x
 	}
 	return y
+}
+
+func (suite *WriterReaderTestSuite) TestWriter_WriteWithNilTx() {
+	message := fakes.FakeMessage()
+
+	tests := []struct {
+		name    string
+		writeFn func() error
+		wantErr error
+	}{
+		{
+			name: "Write with nil tx",
+			writeFn: func() error {
+				_, err := suite.writer.Write(ctx, nil, message)
+				return err
+			},
+			wantErr: outbox.ErrTxNil,
+		},
+		{
+			name: "Write with unsupported tx type",
+			writeFn: func() error {
+				_, err := suite.writer.Write(ctx, struct{}{}, message)
+				return err
+			},
+			wantErr: outbox.ErrTxUnsupportedType,
+		},
+		{
+			name: "WriteBatch with nil tx",
+			writeFn: func() error {
+				_, err := suite.writer.WriteBatch(ctx, nil, []types.Message{message})
+				return err
+			},
+			wantErr: outbox.ErrTxNil,
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			err := tt.writeFn()
+			require.ErrorIs(t, err, tt.wantErr)
+		})
+	}
 }

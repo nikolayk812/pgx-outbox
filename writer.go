@@ -173,7 +173,7 @@ func queryRow(ctx context.Context, tx Tx, q string, args ...interface{}) (pgx.Ro
 	case pgx.Tx:
 		row = t.QueryRow(ctx, q, args...)
 	default:
-		return nil, errors.New("unsupported transaction type")
+		return nil, fmt.Errorf("%w: %T", ErrTxUnsupportedType, tx)
 	}
 
 	return row, nil
