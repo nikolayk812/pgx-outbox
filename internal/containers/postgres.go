@@ -59,10 +59,18 @@ func (c pgCustomizer) Customize(req *testcontainers.GenericContainerRequest) err
 }
 
 func (c pgCustomizer) resolveDir(workingDir string) string {
-	// trim everything after /pgx-outbox
-	parts := strings.Split(workingDir, projectName)
+	token := projectName + "/" + projectName
+
+	parts := strings.Split(workingDir, token)
 	if len(parts) > 1 {
-		workingDir = parts[0] + projectName
+		// GitHub Actions case, i.e. /home/runner/work/pgx-outbox/pgx-outbox/writer_reader_test.go
+		workingDir = parts[0] + token
+	} else {
+		// local machine case
+		parts = strings.Split(workingDir, projectName)
+		if len(parts) > 1 {
+			workingDir = parts[0] + projectName
+		}
 	}
 
 	return fmt.Sprintf("%s/internal/sql/", workingDir)
