@@ -5,6 +5,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/nikolayk812/pgx-outbox/badge.svg)](https://coveralls.io/github/nikolayk812/pgx-outbox)
 [![Dependabot Status](https://img.shields.io/badge/dependencies-up%20to%20date-brightgreen.svg)](https://github.com/nikolayk812/pgx-outbox/network/updates)
 [![Go version](https://img.shields.io/badge/Go-≥1.23-blue)](https://go.dev/)
+[![Release](https://img.shields.io/github/v/tag/nikolayk812/pgx-outbox?label=Release)](https://github.com/nikolayk812/pgx-outbox/releases)
 
 ![Project Logo](./internal/logo.png)
 
