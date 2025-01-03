@@ -9,7 +9,10 @@ RYUK := TESTCONTAINERS_RYUK_DISABLED=true
 build:
 	go build -v ./...
 
-test:
+docker-build:
+	$(MAKE) -C ./examples/01_sns docker-build
+
+test: docker-build
 	$(RYUK) go test $(PACKAGES) -v -race \;
 
 cover: cover-ci

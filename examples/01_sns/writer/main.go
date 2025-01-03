@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"github.com/spf13/viper"
 	"log/slog"
 	"os"
 	"time"
@@ -13,12 +12,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	outbox "github.com/nikolayk812/pgx-outbox"
+	"github.com/spf13/viper"
 )
 
 const (
-	defaultConnStr = "postgres://user:password@localhost:5432/dbname"
-	outboxTable    = "outbox_messages"
-	topic          = "topic1"
+	defaultConnStr  = "postgres://user:password@localhost:5432/dbname"
+	outboxTable     = "outbox_messages"
+	topic           = "topic1"
+	defaultInterval = 1500 * time.Millisecond
 )
 
 func main() {
@@ -36,6 +37,7 @@ func main() {
 	viper.AutomaticEnv()
 
 	dbURL := cmp.Or(viper.GetString("DB_URL"), defaultConnStr)
+	interval := cmp.Or(viper.GetDuration("WRITER_INTERVAL"), defaultInterval)
 
 	writer, err := outbox.NewWriter(outboxTable)
 	if err != nil {
@@ -74,6 +76,6 @@ func main() {
 
 		slog.Info("user created", "user", user)
 
-		time.Sleep(1500 * time.Millisecond)
+		time.Sleep(interval)
 	}
 }

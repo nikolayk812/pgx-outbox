@@ -19,7 +19,7 @@ func Localstack(ctx context.Context, img, services, network string) (testcontain
 		return nil, "", fmt.Errorf("os.Getwd: %w", err)
 	}
 
-	cc := customizer{
+	cc := lsCustomizer{
 		Services:   services,
 		WorkingDir: cwd,
 		Network:    network,
@@ -39,14 +39,14 @@ func Localstack(ctx context.Context, img, services, network string) (testcontain
 	return cont, endpoint, nil
 }
 
-type customizer struct {
+type lsCustomizer struct {
 	Services   string
 	WorkingDir string
 	Network    string
 }
 
-func (e customizer) Customize(req *testcontainers.GenericContainerRequest) error {
-	req.Env = map[string]string{"SERVICES": e.Services}
+func (c lsCustomizer) Customize(req *testcontainers.GenericContainerRequest) error {
+	req.Env = map[string]string{"SERVICES": c.Services}
 
 	// This has to match the log message from the initialization script, otherwise "Ready." can be used.
 	req.WaitingFor = wait.ForLog("LocalStack resources initialized successfully.")
@@ -54,7 +54,7 @@ func (e customizer) Customize(req *testcontainers.GenericContainerRequest) error
 	// Absolute path of a script at the host machine has to be provided.
 	// Tests can be run from different directories, i.e. IDE from ./sns and `make test` from the root.
 	// The script is located in ./internal/containers/localstack-init.sh
-	dir := resolveDir(e.WorkingDir)
+	dir := c.resolveDir(c.WorkingDir)
 	absPath := filepath.Join(dir, "localstack-init.sh")
 
 	req.Entrypoint = []string{"docker-entrypoint.sh"}
@@ -63,21 +63,21 @@ func (e customizer) Customize(req *testcontainers.GenericContainerRequest) error
 		hostConfig.Binds = append(hostConfig.Binds, fmt.Sprintf("%s:/etc/localstack/init/ready.d/localstack-init.sh", absPath))
 	}
 
-	if e.Network != "" {
-		req.Networks = []string{e.Network}
+	if c.Network != "" {
+		req.Networks = []string{c.Network}
 		req.NetworkAliases = map[string][]string{
-			e.Network: {"localstack"},
+			c.Network: {"localstack"},
 		}
 	}
 
 	return nil
 }
 
-func resolveDir(workingDir string) string {
+func (c lsCustomizer) resolveDir(workingDir string) string {
 	// trim everything after /pgx-outbox
-	parts := strings.Split(workingDir, "/pgx-outbox")
+	parts := strings.Split(workingDir, projectName)
 	if len(parts) > 1 {
-		workingDir = parts[0] + "/pgx-outbox"
+		workingDir = parts[0] + projectName
 	}
 
 	return fmt.Sprintf("%s/internal/containers/", workingDir)

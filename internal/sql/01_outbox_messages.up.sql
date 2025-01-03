@@ -11,4 +11,4 @@ CREATE TABLE IF NOT EXISTS outbox_messages
     published_at TIMESTAMP
 );
 
-CREATE INDEX idx_outbox_messages_published_at ON outbox_messages (published_at);
+CREATE INDEX IF NOT EXISTS idx_outbox_messages_published_at ON outbox_messages (published_at);

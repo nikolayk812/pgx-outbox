@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"github.com/spf13/viper"
 	"log/slog"
 	"os"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/sns"
 	outboxSns "github.com/nikolayk812/pgx-outbox/sns"
 	"github.com/nikolayk812/pgx-outbox/types"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -26,6 +26,8 @@ const (
 	// Localstack
 	region          = "eu-central-1"
 	defaultEndpoint = "http://localhost:4566"
+
+	defaultInterval = 5 * time.Second
 )
 
 func main() {
@@ -44,6 +46,7 @@ func main() {
 
 	dbURL := cmp.Or(viper.GetString("DB_URL"), defaultConnStr)
 	localstackEndpoint := cmp.Or(viper.GetString("LOCALSTACK_ENDPOINT"), defaultEndpoint)
+	interval := cmp.Or(viper.GetDuration("FORWARDER_INTERVAL"), defaultInterval)
 
 	ctx := context.Background()
 
@@ -82,7 +85,7 @@ func main() {
 
 		slog.Info("forwarded", "stats", stats)
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(interval)
 	}
 }
 

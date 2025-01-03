@@ -2,7 +2,6 @@ package outbox_test
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -44,14 +43,11 @@ func TestWriterReaderTestSuite(t *testing.T) {
 func (suite *WriterReaderTestSuite) SetupSuite() {
 	suite.noError(os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true"))
 
-	container, connStr, err := containers.Postgres(ctx, "postgres:17.2-alpine3.21")
+	container, connStr, err := containers.Postgres(ctx, "postgres:17.2-alpine3.21", "")
 	suite.noError(err)
 	suite.container = container
 
 	suite.pool, err = pgxpool.New(ctx, connStr)
-	suite.noError(err)
-
-	err = suite.prepareDB("internal/sql/01_outbox_messages.up.sql")
 	suite.noError(err)
 
 	suite.writer, err = outbox.NewWriter(outboxTable)
@@ -388,22 +384,6 @@ func (suite *WriterReaderTestSuite) TestWriter_MarkMessage() {
 
 type payload struct {
 	Content string `json:"content"`
-}
-
-//go:embed internal/sql/*.sql
-var sqlFiles embed.FS
-
-func (suite *WriterReaderTestSuite) prepareDB(scriptPath string) error {
-	script, err := sqlFiles.ReadFile(scriptPath)
-	if err != nil {
-		return fmt.Errorf("sqlFiles.ReadFile: %w", err)
-	}
-
-	if _, err := suite.pool.Exec(ctx, string(script)); err != nil {
-		return fmt.Errorf("pool.Exec: %w", err)
-	}
-
-	return nil
 }
 
 func assertEqualMessage(t *testing.T, expected, actual types.Message) {

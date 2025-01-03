@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/spf13/viper"
 	"log"
 	"log/slog"
 	"os"
 	"time"
 
 	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/sqs"
+	"github.com/spf13/viper"
 )
 
 const (
