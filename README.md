@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS outbox_messages
     published_at TIMESTAMP
 );
 
-CREATE INDEX idx_outbox_messages_published_at ON outbox_messages (published_at);
+CREATE INDEX IF NOT EXISTS idx_outbox_messages_published_at_null ON outbox_messages (published_at) WHERE published_at IS NULL;
 ```
 
 The outbox table name can be customized, but the table structure should remain exactly the same.
@@ -129,3 +129,9 @@ Source code and instructions for the example are located in the [examples/01_sns
 ## Stargazers over time
 
 [![Stargazers over time](https://starchart.cc/nikolayk812/pgx-outbox.svg?variant=adaptive)](https://starchart.cc/nikolayk812/pgx-outbox)
+
+## Alternatives
+
+- [Trendyol/go-pq-cdc](https://github.com/Trendyol/go-pq-cdc) - Change Data Capture (CDC) library for PostgreSQL
+- [watermill-sql](https://github.com/ThreeDotsLabs/watermill-sql) - PostgreSQL Pub/Sub for Watermill
+- [dataddo/pgq](https://github.com/dataddo/pgq) - Go queue implementation using PostgreSQL

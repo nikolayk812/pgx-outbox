@@ -11,4 +11,5 @@ CREATE TABLE IF NOT EXISTS outbox_messages
     published_at TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_outbox_messages_published_at ON outbox_messages (published_at);
+-- https://www.postgresql.org/docs/current/indexes-partial.html
+CREATE INDEX IF NOT EXISTS idx_outbox_messages_published_at_null ON outbox_messages (published_at) WHERE published_at IS NULL;
