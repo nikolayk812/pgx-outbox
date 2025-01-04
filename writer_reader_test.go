@@ -2,15 +2,16 @@ package outbox_test
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	outbox "github.com/nikolayk812/pgx-outbox"
 	"github.com/nikolayk812/pgx-outbox/internal/containers"
 	"github.com/nikolayk812/pgx-outbox/internal/fakes"
@@ -29,6 +30,7 @@ var ctx = context.Background()
 type WriterReaderTestSuite struct {
 	suite.Suite
 	pool      *pgxpool.Pool
+	db        *sql.DB
 	container testcontainers.Container
 
 	writer outbox.Writer
@@ -50,6 +52,9 @@ func (suite *WriterReaderTestSuite) SetupSuite() {
 	suite.pool, err = pgxpool.New(ctx, connStr)
 	suite.noError(err)
 
+	suite.db, err = sql.Open("pgx", connStr)
+	suite.noError(err)
+
 	suite.writer, err = outbox.NewWriter(outboxTable)
 	suite.noError(err)
 
@@ -61,54 +66,17 @@ func (suite *WriterReaderTestSuite) TearDownSuite() {
 	if suite.pool != nil {
 		suite.pool.Close()
 	}
+	if suite.db != nil {
+		suite.NoError(suite.db.Close())
+	}
 	if suite.container != nil {
-		if err := suite.container.Terminate(ctx); err != nil {
-			slog.Error("suite.container.Terminate", slog.Any("error", err))
-		}
+		suite.NoError(suite.container.Terminate(ctx))
 	}
 
 	goleak.VerifyNone(suite.T())
 }
 
-func (suite *WriterReaderTestSuite) TestWriter_New() {
-	tests := []struct {
-		name    string
-		table   string
-		options []outbox.WriteOption
-		wantErr error
-	}{
-		{
-			name:    "empty table",
-			table:   "",
-			wantErr: outbox.ErrTableEmpty,
-		},
-		{
-			name:  "non-empty table",
-			table: "outbox_messages",
-		},
-		{
-			name:    "with options",
-			table:   "outbox_messages",
-			options: []outbox.WriteOption{outbox.WithDisablePreparedBatch()},
-		},
-	}
-
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
-			t := suite.T()
-
-			writer, err := outbox.NewWriter(tt.table, tt.options...)
-			if tt.wantErr != nil {
-				require.ErrorIs(t, err, tt.wantErr)
-				return
-			}
-
-			require.NoError(t, err)
-			assert.NotNil(t, writer)
-		})
-	}
-}
-
+//nolint:dupl
 func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 	invalidMessage := fakes.FakeMessage()
 	invalidMessage.Broker = ""
@@ -152,6 +120,70 @@ func (suite *WriterReaderTestSuite) TestWriter_WriteMessage() {
 			// GIVEN
 			for _, message := range tt.in {
 				id, err := suite.write(message)
+				if tt.wantErr {
+					require.Error(t, err)
+					return
+				}
+				require.NoError(t, err)
+				assert.Positive(t, id)
+			}
+
+			limit := maxInt(1, len(tt.in))
+
+			// THEN
+			actual, err := suite.reader.Read(ctx, limit)
+			require.NoError(t, err)
+			assertEqualMessages(t, tt.in, actual)
+
+			suite.markAll()
+		})
+	}
+}
+
+//nolint:dupl
+func (suite *WriterReaderTestSuite) TestWriter_WriteMessageStdLib() {
+	invalidMessage := fakes.FakeMessage()
+	invalidMessage.Broker = ""
+
+	tests := []struct {
+		name    string
+		in      []types.Message
+		wantErr bool
+	}{
+		{
+			name: "no messages",
+			in:   []types.Message{},
+		},
+		{
+			name: "single message",
+			in: []types.Message{
+				fakes.FakeMessage(),
+			},
+		},
+		{
+			name: "multiple in",
+			in: []types.Message{
+				fakes.FakeMessage(),
+				fakes.FakeMessage(),
+			},
+		},
+		{
+			name: "invalid message",
+			in: []types.Message{
+				invalidMessage,
+			},
+			wantErr: true,
+		},
+		// Add more test cases as needed
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			// GIVEN
+			for _, message := range tt.in {
+				id, err := suite.writeStdLib(message)
 				if tt.wantErr {
 					require.Error(t, err)
 					return
@@ -487,8 +519,55 @@ func (suite *WriterReaderTestSuite) beginTx(ctx context.Context) (pgx.Tx, func(e
 	return tx, commitFunc, nil
 }
 
+func (suite *WriterReaderTestSuite) beginTxStdLib() (*sql.Tx, func(err error) error, error) {
+	emptyFunc := func(_ error) error { return nil }
+
+	tx, err := suite.db.Begin()
+	if err != nil {
+		return nil, emptyFunc, fmt.Errorf("db.Begin: %w", err)
+	}
+
+	commitFunc := func(execErr error) error {
+		if execErr != nil {
+			rbErr := tx.Rollback()
+			if rbErr != nil {
+				return fmt.Errorf("tx.Rollback %v: %w", execErr, rbErr) //nolint:errorlint
+			}
+			return execErr
+		}
+
+		txErr := tx.Commit()
+		if txErr != nil {
+			return fmt.Errorf("tx.Commit: %w", txErr)
+		}
+
+		return nil
+	}
+
+	return tx, commitFunc, nil
+}
+
 func (suite *WriterReaderTestSuite) write(message types.Message) (_ int64, txErr error) {
 	tx, commitFunc, err := suite.beginTx(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("beginTx: %w", err)
+	}
+	defer func() {
+		if err := commitFunc(txErr); err != nil {
+			txErr = fmt.Errorf("commitFunc: %w", err)
+		}
+	}()
+
+	id, err := suite.writer.Write(ctx, tx, message)
+	if err != nil {
+		return 0, fmt.Errorf("writer.Write: %w", err)
+	}
+
+	return id, nil
+}
+
+func (suite *WriterReaderTestSuite) writeStdLib(message types.Message) (_ int64, txErr error) {
+	tx, commitFunc, err := suite.beginTxStdLib()
 	if err != nil {
 		return 0, fmt.Errorf("beginTx: %w", err)
 	}
@@ -549,11 +628,52 @@ func (suite *WriterReaderTestSuite) noError(err error) {
 	suite.Require().NoError(err)
 }
 
+//nolint:unparam
 func maxInt(x, y int) int {
 	if x > y {
 		return x
 	}
 	return y
+}
+
+// TestWriter_New is just to increase coverage.
+func (suite *WriterReaderTestSuite) TestWriter_New() {
+	tests := []struct {
+		name    string
+		table   string
+		options []outbox.WriteOption
+		wantErr error
+	}{
+		{
+			name:    "empty table",
+			table:   "",
+			wantErr: outbox.ErrTableEmpty,
+		},
+		{
+			name:  "non-empty table",
+			table: "outbox_messages",
+		},
+		{
+			name:    "with options",
+			table:   "outbox_messages",
+			options: []outbox.WriteOption{outbox.WithDisablePreparedBatch()},
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			writer, err := outbox.NewWriter(tt.table, tt.options...)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.NotNil(t, writer)
+		})
+	}
 }
 
 func (suite *WriterReaderTestSuite) TestWriter_WriteWithNilTx() {
@@ -596,6 +716,51 @@ func (suite *WriterReaderTestSuite) TestWriter_WriteWithNilTx() {
 
 			err := tt.writeFn()
 			require.ErrorIs(t, err, tt.wantErr)
+		})
+	}
+}
+
+// TestReader_New is just to increase coverage.
+func (suite *WriterReaderTestSuite) TestReader_New() {
+	tests := []struct {
+		name    string
+		table   string
+		pool    *pgxpool.Pool
+		option  outbox.ReadOption
+		wantErr error
+	}{
+		{
+			name:    "empty table",
+			table:   "",
+			pool:    suite.pool,
+			wantErr: outbox.ErrTableEmpty,
+		},
+		{
+			name:    "nil pool",
+			table:   "outbox_messages",
+			pool:    nil,
+			wantErr: outbox.ErrPoolNil,
+		},
+		{
+			name:   "with option",
+			table:  "outbox_messages",
+			pool:   suite.pool,
+			option: outbox.WithReadFilter(types.MessageFilter{Brokers: []string{"broker1"}}),
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			reader, err := outbox.NewReader(tt.table, tt.pool, tt.option)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.NotNil(t, reader)
 		})
 	}
 }

@@ -2,7 +2,6 @@ package outbox
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -37,7 +36,7 @@ type reader struct {
 
 func NewReader(table string, pool *pgxpool.Pool, opts ...ReadOption) (Reader, error) {
 	if pool == nil {
-		return nil, errors.New("pool is nil")
+		return nil, ErrPoolNil
 	}
 	if table == "" {
 		return nil, ErrTableEmpty

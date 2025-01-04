@@ -7,4 +7,6 @@ var (
 	ErrTxUnsupportedType = errors.New("tx has unsupported type")
 
 	ErrTableEmpty = errors.New("table is empty")
+
+	ErrPoolNil = errors.New("pool is nil")
 )
