@@ -3,7 +3,6 @@ package outbox
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
@@ -161,10 +160,6 @@ func (w *writer) WriteBatch(ctx context.Context, tx pgx.Tx, messages []types.Mes
 type Tx interface{}
 
 func queryRow(ctx context.Context, tx Tx, q string, args ...interface{}) (pgx.Row, error) {
-	if tx == nil {
-		return nil, errors.New("tx is nil")
-	}
-
 	var row pgx.Row
 
 	switch t := tx.(type) {

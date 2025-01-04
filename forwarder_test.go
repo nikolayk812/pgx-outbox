@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	outbox "github.com/nikolayk812/pgx-outbox"
 	"github.com/nikolayk812/pgx-outbox/internal/fakes"
 	"github.com/nikolayk812/pgx-outbox/internal/mocks"
@@ -172,6 +173,116 @@ func TestForwarder_Forward(t *testing.T) {
 			// Assert expectations
 			readerMock.AssertExpectations(t)
 			publisherMock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestForwarder_New(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		reader    outbox.Reader
+		publisher outbox.Publisher
+		options   []outbox.ForwardOption
+		wantErr   error
+	}{
+		{
+			name:    "nil reader",
+			reader:  nil,
+			wantErr: outbox.ErrReaderNil,
+		},
+		{
+			name:      "nil publisher",
+			reader:    new(mocks.Reader),
+			publisher: nil,
+			wantErr:   outbox.ErrPublisherNil,
+		},
+		{
+			name:      "with options",
+			reader:    new(mocks.Reader),
+			publisher: new(mocks.Publisher),
+			options:   []outbox.ForwardOption{outbox.WithForwardFilter(types.MessageFilter{Brokers: []string{"broker1"}})},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			forwarder, err := outbox.NewForwarder(tt.reader, tt.publisher, tt.options...)
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.NotNil(t, forwarder)
+		})
+	}
+}
+
+func TestForwarder_NewFromPool(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		table     string
+		pool      *pgxpool.Pool
+		publisher outbox.Publisher
+		options   []outbox.ForwardOption
+		wantErr   error
+	}{
+		{
+			name:    "empty table",
+			table:   "",
+			pool:    new(pgxpool.Pool),
+			wantErr: outbox.ErrTableEmpty,
+		},
+		{
+			name:    "nil pool",
+			table:   "outbox_messages",
+			pool:    nil,
+			wantErr: outbox.ErrPoolNil,
+		},
+		{
+			name:      "nil publisher",
+			table:     "outbox_messages",
+			pool:      new(pgxpool.Pool),
+			publisher: nil,
+			wantErr:   outbox.ErrPublisherNil,
+		},
+		{
+			name:      "valid inputs",
+			table:     "outbox_messages",
+			pool:      new(pgxpool.Pool),
+			publisher: new(mocks.Publisher),
+			wantErr:   nil,
+		},
+		{
+			name:      "with option",
+			table:     "outbox_messages",
+			pool:      new(pgxpool.Pool),
+			publisher: new(mocks.Publisher),
+			options:   []outbox.ForwardOption{outbox.WithForwardFilter(types.MessageFilter{Brokers: []string{"broker1"}})},
+			wantErr:   nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			forwarder, err := outbox.NewForwarderFromPool(tt.table, tt.pool, tt.publisher, tt.options...)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				assert.Nil(t, forwarder)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.NotNil(t, forwarder)
 		})
 	}
 }

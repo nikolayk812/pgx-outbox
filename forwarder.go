@@ -2,7 +2,6 @@ package outbox
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,10 +23,10 @@ type forwarder struct {
 
 func NewForwarder(reader Reader, publisher Publisher, opts ...ForwardOption) (Forwarder, error) {
 	if reader == nil {
-		return nil, errors.New("reader is nil")
+		return nil, ErrReaderNil
 	}
 	if publisher == nil {
-		return nil, errors.New("publisher is nil")
+		return nil, ErrPublisherNil
 	}
 
 	f := &forwarder{

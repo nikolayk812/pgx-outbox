@@ -363,7 +363,7 @@ func (suite *WriterReaderTestSuite) TestReader_ReadMessage() {
 	}
 }
 
-func (suite *WriterReaderTestSuite) TestWriter_MarkMessage() {
+func (suite *WriterReaderTestSuite) TestWriter_AckMessage() {
 	msg1 := fakes.FakeMessage()
 	msg2 := fakes.FakeMessage()
 	msg3 := fakes.FakeMessage()
@@ -726,7 +726,7 @@ func (suite *WriterReaderTestSuite) TestReader_New() {
 		name    string
 		table   string
 		pool    *pgxpool.Pool
-		option  outbox.ReadOption
+		options []outbox.ReadOption
 		wantErr error
 	}{
 		{
@@ -742,10 +742,10 @@ func (suite *WriterReaderTestSuite) TestReader_New() {
 			wantErr: outbox.ErrPoolNil,
 		},
 		{
-			name:   "with option",
-			table:  "outbox_messages",
-			pool:   suite.pool,
-			option: outbox.WithReadFilter(types.MessageFilter{Brokers: []string{"broker1"}}),
+			name:    "with options",
+			table:   "outbox_messages",
+			pool:    suite.pool,
+			options: []outbox.ReadOption{outbox.WithReadFilter(types.MessageFilter{Brokers: []string{"broker1"}})},
 		},
 	}
 
@@ -753,7 +753,7 @@ func (suite *WriterReaderTestSuite) TestReader_New() {
 		suite.Run(tt.name, func() {
 			t := suite.T()
 
-			reader, err := outbox.NewReader(tt.table, tt.pool, tt.option)
+			reader, err := outbox.NewReader(tt.table, tt.pool, tt.options...)
 			if tt.wantErr != nil {
 				require.ErrorIs(t, err, tt.wantErr)
 				return
