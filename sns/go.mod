@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.28.7
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.48
 	github.com/aws/aws-sdk-go-v2/service/sns v1.33.8
-	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.3
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.4
 	github.com/nikolayk812/pgx-outbox v0.0.1
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.34.0
