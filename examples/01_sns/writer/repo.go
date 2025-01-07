@@ -8,7 +8,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	outbox "github.com/nikolayk812/pgx-outbox"
+	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/tracing"
 	"github.com/nikolayk812/pgx-outbox/types"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Repo interface {
@@ -41,6 +43,8 @@ func NewRepo(pool *pgxpool.Pool, writer outbox.Writer, mapper UserMessageMapper)
 }
 
 func (r *repo) CreateUser(ctx context.Context, user User) (u User, txErr error) {
+	ctx, span, finishSpan := tracing.StartSpan(ctx, tracerName, "user_created")
+
 	tx, commitFunc, err := r.beginTx(ctx)
 	if err != nil {
 		return u, fmt.Errorf("beginTx: %w", err)
@@ -49,6 +53,7 @@ func (r *repo) CreateUser(ctx context.Context, user User) (u User, txErr error) 
 		if txErr = commitFunc(txErr); txErr != nil {
 			txErr = fmt.Errorf("commitFunc: %w", txErr)
 		}
+		finishSpan(txErr)
 	}()
 
 	user, err = r.createUser(ctx, tx, user)
@@ -64,6 +69,8 @@ func (r *repo) CreateUser(ctx context.Context, user User) (u User, txErr error) 
 	if _, err := r.writer.Write(ctx, tx, message); err != nil {
 		return u, fmt.Errorf("writer.Write: %w", err)
 	}
+
+	span.SetAttributes(attribute.String("user.id", user.ID.String()))
 
 	return user, nil
 }

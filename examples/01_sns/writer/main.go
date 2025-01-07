@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	outbox "github.com/nikolayk812/pgx-outbox"
+	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/tracing"
 	"github.com/spf13/viper"
 )
 
@@ -20,6 +21,9 @@ const (
 	outboxTable     = "outbox_messages"
 	topic           = "topic1"
 	defaultInterval = 1500 * time.Millisecond
+
+	defaultTracingEndpoint = "localhost:4317"
+	tracerName             = "pgx-outbox-writer"
 )
 
 func main() {
@@ -36,16 +40,24 @@ func main() {
 
 	viper.AutomaticEnv()
 
+	tracingEndpoint := cmp.Or(viper.GetString("TRACING_ENDPOINT"), defaultTracingEndpoint)
 	dbURL := cmp.Or(viper.GetString("DB_URL"), defaultConnStr)
 	interval := cmp.Or(viper.GetDuration("WRITER_INTERVAL"), defaultInterval)
+
+	ctx := context.Background()
+
+	shutdownTracer, err := tracing.InitGrpcTracer(ctx, tracingEndpoint, tracerName)
+	if err != nil {
+		gErr = fmt.Errorf("tracing.InitGrpcTracer: %w", err)
+		return
+	}
+	defer shutdownTracer()
 
 	writer, err := outbox.NewWriter(outboxTable)
 	if err != nil {
 		gErr = fmt.Errorf("outbox.NewWriter: %w", err)
 		return
 	}
-
-	ctx := context.Background()
 
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
@@ -59,7 +71,7 @@ func main() {
 		return
 	}
 
-	slog.Info("Writer Ready")
+	slog.Info("Writer Ready") // integration test waits for this message
 
 	for {
 		user := User{

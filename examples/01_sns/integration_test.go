@@ -61,6 +61,7 @@ func goContainer(t *testing.T, imageSuffix, pgConnStr, localstackEndpoint, netwo
 				"LOCALSTACK_ENDPOINT": localstackEndpoint,
 				"WRITER_INTERVAL":     "100ms",
 				"FORWARDER_INTERVAL":  "200ms",
+				"TRACING_ENDPOINT":    "off",
 			},
 			Networks: []string{networkName},
 		},
