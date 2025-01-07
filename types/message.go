@@ -4,6 +4,10 @@ import (
 	"fmt"
 )
 
+const (
+	MetadataTraceID = "pgx_outbox_trace_id"
+)
+
 type Message struct {
 	// ID is assigned by Postgres database after calling a Write method of outbox.Writer.
 	ID int64
