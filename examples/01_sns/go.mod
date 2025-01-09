@@ -10,9 +10,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sns v1.33.9
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.5
 	github.com/brianvoe/gofakeit v3.18.0+incompatible
+	github.com/exaring/otelpgx v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/nikolayk812/pgx-outbox v0.0.0-00010101000000-000000000000
+	github.com/nikolayk812/pgx-outbox v0.0.2-0.20250109162733-ba4c51a2772d
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.34.0
@@ -22,8 +23,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.33.0
 	google.golang.org/grpc v1.69.2
 )
-
-replace github.com/nikolayk812/pgx-outbox => ../..
 
 require (
 	dario.cat/mergo v1.0.1 // indirect

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/brianvoe/gofakeit"
+	"github.com/exaring/otelpgx"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	outbox "github.com/nikolayk812/pgx-outbox"
@@ -59,7 +60,15 @@ func main() {
 		return
 	}
 
-	pool, err := pgxpool.New(ctx, dbURL)
+	cfg, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		gErr = fmt.Errorf("pgxpool.ParseConfig: %w", err)
+		return
+	}
+
+	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		gErr = fmt.Errorf("pgxpool.New: %w", err)
 		return
