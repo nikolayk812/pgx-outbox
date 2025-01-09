@@ -1,4 +1,4 @@
-package sns
+package sns_test
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	outbox "github.com/nikolayk812/pgx-outbox"
 	"github.com/nikolayk812/pgx-outbox/internal/containers"
 	"github.com/nikolayk812/pgx-outbox/internal/fakes"
+	"github.com/nikolayk812/pgx-outbox/sns"
 	"github.com/nikolayk812/pgx-outbox/sns/internal/sqs"
 	"github.com/nikolayk812/pgx-outbox/types"
 	"github.com/stretchr/testify/assert"
@@ -38,6 +39,7 @@ type PublisherTestSuite struct {
 	publisher outbox.Publisher
 }
 
+//nolint:paralleltest
 func TestPublisherTestSuite(t *testing.T) {
 	suite.Run(t, new(PublisherTestSuite))
 }
@@ -62,7 +64,7 @@ func (suite *PublisherTestSuite) SetupSuite() {
 
 	transformer := simpleTransformer{}
 
-	suite.publisher, err = NewPublisher(awsSnsCli, transformer)
+	suite.publisher, err = sns.NewPublisher(awsSnsCli, transformer)
 	suite.noError(err)
 }
 
@@ -132,4 +134,38 @@ func (t simpleTransformer) Transform(_ context.Context, message types.Message) (
 		Message:  aws.String(string(message.Payload)),
 		TopicArn: &message.Topic,
 	}, nil
+}
+
+func TestPublisher_New(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		snsClient   *awsSns.Client
+		transformer sns.MessageTransformer
+		expectedErr error
+	}{
+		{
+			name:        "nil SNS client",
+			snsClient:   nil,
+			transformer: simpleTransformer{},
+			expectedErr: sns.ErrSnsClientNil,
+		},
+		{
+			name:        "nil transformer",
+			snsClient:   &awsSns.Client{},
+			transformer: nil,
+			expectedErr: sns.ErrTransformerNil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			publisher, err := sns.NewPublisher(tt.snsClient, tt.transformer)
+			assert.Nil(t, publisher)
+			assert.ErrorIs(t, err, tt.expectedErr)
+		})
+	}
 }

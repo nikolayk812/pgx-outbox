@@ -14,7 +14,7 @@ import (
 
 type Client interface {
 	GetQueueURL(ctx context.Context, queueName string) (string, error)
-	ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (types.Message, error)
+	ReadOneFromSQS(ctx context.Context, queueURL string, timeout time.Duration) (types.Message, error)
 	ExtractOutboxPayload(message types.Message) ([]byte, error)
 }
 
@@ -45,7 +45,8 @@ func (c *client) GetQueueURL(ctx context.Context, queueName string) (string, err
 	return *output.QueueUrl, nil
 }
 
-func (c *client) ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (m types.Message, _ error) {
+//nolint:nonamedreturns
+func (c *client) ReadOneFromSQS(ctx context.Context, queueURL string, timeout time.Duration) (m types.Message, _ error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -55,7 +56,7 @@ func (c *client) ReadOneFromSQS(ctx context.Context, queueUrl string, timeout ti
 			return m, ctx.Err()
 		default:
 			messages, err := c.cli.ReceiveMessage(ctx, &awsSqs.ReceiveMessageInput{
-				QueueUrl:            aws.String(queueUrl),
+				QueueUrl:            aws.String(queueURL),
 				MaxNumberOfMessages: 1,
 			})
 			if err != nil {
@@ -70,7 +71,7 @@ func (c *client) ReadOneFromSQS(ctx context.Context, queueUrl string, timeout ti
 			message := messages.Messages[0]
 
 			_, err = c.cli.DeleteMessage(ctx, &awsSqs.DeleteMessageInput{
-				QueueUrl:      aws.String(queueUrl),
+				QueueUrl:      aws.String(queueURL),
 				ReceiptHandle: message.ReceiptHandle,
 			})
 			if err != nil {

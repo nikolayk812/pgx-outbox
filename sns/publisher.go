@@ -16,10 +16,10 @@ type Publisher struct {
 
 func NewPublisher(snsClient *awsSns.Client, transformer MessageTransformer) (outbox.Publisher, error) {
 	if snsClient == nil {
-		return nil, fmt.Errorf("snsClient is nil")
+		return nil, ErrSnsClientNil
 	}
 	if transformer == nil {
-		return nil, fmt.Errorf("transformer is nil")
+		return nil, ErrTransformerNil
 	}
 
 	return &Publisher{
