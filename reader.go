@@ -24,8 +24,8 @@ type Reader interface {
 
 	// Ack acknowledges / marks the messages by ids as published in a single transaction.
 	// ids can be obtained from the Read method output.
-	// It returns the number of messages acknowledged.
-	Ack(ctx context.Context, ids []int64) (int, error)
+	// It returns ids of acknowledged messages.
+	Ack(ctx context.Context, ids []int64) ([]int64, error)
 }
 
 type reader struct {
@@ -105,9 +105,9 @@ func (r *reader) Read(ctx context.Context, limit int) ([]types.Message, error) {
 // Non-existent and duplicate ids are skipped.
 // returns an error if
 // - SQL query building or DB call fails.
-func (r *reader) Ack(ctx context.Context, ids []int64) (int, error) {
+func (r *reader) Ack(ctx context.Context, ids []int64) ([]int64, error) {
 	if len(ids) == 0 {
-		return 0, nil
+		return ids, nil
 	}
 
 	now := time.Now().UTC()
@@ -116,19 +116,31 @@ func (r *reader) Ack(ctx context.Context, ids []int64) (int, error) {
 		Update(r.table).
 		Set("published_at", now).
 		Where(sq.Eq{"id": ids}).
-		Where(sq.Eq{"published_at": nil})
+		Where(sq.Eq{"published_at": nil}).
+		Suffix("RETURNING id")
 
 	q, args, err := ub.ToSql()
 	if err != nil {
-		return 0, fmt.Errorf("ub.ToSql: %w", err)
+		return nil, fmt.Errorf("ub.ToSql: %w", err)
 	}
 
-	commandTag, err := r.pool.Exec(ctx, q, args...)
+	rows, err := r.pool.Query(ctx, q, args...)
 	if err != nil {
-		return 0, fmt.Errorf("pool.Exec: %w", err)
+		return nil, fmt.Errorf("pool.Query: %w", err)
 	}
 
-	return int(commandTag.RowsAffected()), nil
+	updatedIDs, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (int64, error) {
+		var id int64
+		if err := row.Scan(&id); err != nil {
+			return 0, fmt.Errorf("row.Scan: %w", err)
+		}
+		return id, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("pgx.CollectRows: %w", err)
+	}
+
+	return updatedIDs, nil
 }
 
 func whereFilter(sb sq.SelectBuilder, filter types.MessageFilter) sq.SelectBuilder {

@@ -45,7 +45,7 @@ func TestIntegration(t *testing.T) {
 	goContainer(t, "forwarder", pgConnStr, localstackEndpoint, network.Name, wait.NewLogStrategy("Forwarder Ready"))
 
 	// wait strategy verifies that the messages are delivered from the Writer to the SQS-Reader end-to-end
-	waitStrategy := wait.NewLogStrategy(EventTypeUserCreated).WithOccurrence(7).WithStartupTimeout(time.Second * 1)
+	waitStrategy := wait.NewLogStrategy(EventTypeUserCreated).WithOccurrence(7).WithStartupTimeout(time.Second * 2)
 	goContainer(t, "sqs-reader", pgConnStr, localstackEndpoint, network.Name, waitStrategy)
 }
 

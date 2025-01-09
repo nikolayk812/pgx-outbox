@@ -10,9 +10,11 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsSns "github.com/aws/aws-sdk-go-v2/service/sns"
+	snsTypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/jackc/pgx/v5/pgxpool"
 	outbox "github.com/nikolayk812/pgx-outbox"
 	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/sns"
+	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/tracing"
 	outboxSns "github.com/nikolayk812/pgx-outbox/sns"
 	"github.com/nikolayk812/pgx-outbox/types"
 	"github.com/spf13/viper"
@@ -26,6 +28,10 @@ const (
 	// Localstack
 	region          = "eu-central-1"
 	defaultEndpoint = "http://localhost:4566"
+
+	// Tracing
+	defaultTracingEndpoint = "localhost:4317"
+	tracerName             = "pgx-outbox/forwarder"
 
 	defaultInterval = 5 * time.Second
 )
@@ -44,11 +50,19 @@ func main() {
 
 	viper.AutomaticEnv()
 
+	tracingEndpoint := cmp.Or(viper.GetString("TRACING_ENDPOINT"), defaultTracingEndpoint)
 	dbURL := cmp.Or(viper.GetString("DB_URL"), defaultConnStr)
 	localstackEndpoint := cmp.Or(viper.GetString("LOCALSTACK_ENDPOINT"), defaultEndpoint)
 	interval := cmp.Or(viper.GetDuration("FORWARDER_INTERVAL"), defaultInterval)
 
 	ctx := context.Background()
+
+	shutdownTracer, err := tracing.InitGrpcTracer(ctx, tracingEndpoint, tracerName)
+	if err != nil {
+		gErr = fmt.Errorf("tracing.InitGrpcTracer: %w", err)
+		return
+	}
+	defer shutdownTracer()
 
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
@@ -74,7 +88,7 @@ func main() {
 		return
 	}
 
-	slog.Info("Forwarder Ready")
+	slog.Info("Forwarder Ready") // integration test waits for this message
 
 	for {
 		stats, err := forwarder.Forward(ctx, 10)
@@ -91,12 +105,24 @@ func main() {
 
 type simpleTransformer struct{}
 
-func (t simpleTransformer) Transform(message types.Message) (*awsSns.PublishInput, error) {
+func (t simpleTransformer) Transform(_ context.Context, message types.Message) (*awsSns.PublishInput, error) {
 	// 000000000000 is the AWS account ID for Localstack.
 	topicARN := fmt.Sprintf("arn:aws:sns:%s:000000000000:%s", region, message.Topic)
 
-	return &awsSns.PublishInput{
+	input := &awsSns.PublishInput{
 		Message:  aws.String(string(message.Payload)),
 		TopicArn: &topicARN,
-	}, nil
+	}
+
+	if len(message.Metadata) > 0 {
+		input.MessageAttributes = make(map[string]snsTypes.MessageAttributeValue)
+		for k, v := range message.Metadata {
+			input.MessageAttributes[k] = snsTypes.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(v),
+			}
+		}
+	}
+
+	return input, nil
 }

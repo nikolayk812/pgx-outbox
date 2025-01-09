@@ -405,9 +405,10 @@ func (suite *WriterReaderTestSuite) TestWriter_AckMessage() {
 			count: 3,
 		},
 		{
-			name:  "three of three duplicate",
-			in:    types.Messages{msg1, msg2, msg3},
-			count: 3,
+			name:      "three of three duplicate",
+			in:        types.Messages{msg1, msg2, msg3},
+			count:     3,
+			duplicate: true,
 		},
 	}
 
@@ -433,11 +434,11 @@ func (suite *WriterReaderTestSuite) TestWriter_AckMessage() {
 				idsToMark = append(idsToMark, idsToMark...)
 			}
 
-			affected, err := suite.reader.Ack(ctx, idsToMark)
+			acked, err := suite.reader.Ack(ctx, idsToMark)
 
 			// THEN
 			require.NoError(t, err)
-			assert.Equal(t, tt.count, affected)
+			assert.Len(t, acked, tt.count)
 
 			// WHEN-2
 			limit := maxInt(1, len(tt.in))
@@ -613,9 +614,9 @@ func (suite *WriterReaderTestSuite) markAll() {
 	suite.noError(err)
 
 	ids := types.Messages(actual).IDs()
-	affected, err := suite.reader.Ack(ctx, ids)
+	acked, err := suite.reader.Ack(ctx, ids)
 	suite.noError(err)
-	suite.Len(ids, affected)
+	suite.Equal(ids, acked)
 
 	// THEN nothing cannot be found anymore
 	actual, err = suite.reader.Read(ctx, maxLimit)

@@ -28,7 +28,7 @@ func TestForwarder_Forward(t *testing.T) {
 		name       string
 		messages   []types.Message
 		setupMocks func(readerMock *mocks.Reader, publisherMock *mocks.Publisher)
-		stats      types.ForwardStats
+		stats      types.ForwardOutput
 		wantErr    bool
 	}{
 		{
@@ -46,12 +46,12 @@ func TestForwarder_Forward(t *testing.T) {
 
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 
-				readerMock.On("Ack", ctx, []int64{msg1.ID}).Return(1, nil)
+				readerMock.On("Ack", ctx, []int64{msg1.ID}).Return([]int64{msg1.ID}, nil)
 			},
-			stats: types.ForwardStats{
-				Read:      1,
-				Published: 1,
-				Acked:     1,
+			stats: types.ForwardOutput{
+				Read:         types.Messages{msg1},
+				PublishedIDs: []int64{msg1.ID},
+				AckedIDs:     []int64{msg1.ID},
 			},
 		},
 		{
@@ -64,12 +64,12 @@ func TestForwarder_Forward(t *testing.T) {
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 				publisherMock.On("Publish", ctx, msg2).Return(nil)
 
-				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(2, nil)
+				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return([]int64{msg1.ID, msg2.ID}, nil)
 			},
-			stats: types.ForwardStats{
-				Read:      2,
-				Published: 2,
-				Acked:     2,
+			stats: types.ForwardOutput{
+				Read:         types.Messages{msg1, msg2},
+				PublishedIDs: []int64{msg1.ID, msg2.ID},
+				AckedIDs:     []int64{msg1.ID, msg2.ID},
 			},
 		},
 		{
@@ -81,10 +81,8 @@ func TestForwarder_Forward(t *testing.T) {
 
 				publisherMock.On("Publish", ctx, msg1).Return(errors.New("failed"))
 			},
-			stats: types.ForwardStats{
-				Read:      1,
-				Published: 0,
-				Acked:     0,
+			stats: types.ForwardOutput{
+				Read: types.Messages{msg1},
 			},
 			wantErr: true,
 		},
@@ -98,10 +96,9 @@ func TestForwarder_Forward(t *testing.T) {
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 				publisherMock.On("Publish", ctx, msg2).Return(errors.New("failed"))
 			},
-			stats: types.ForwardStats{
-				Read:      2,
-				Published: 1,
-				Acked:     0,
+			stats: types.ForwardOutput{
+				Read:         types.Messages{msg1, msg2},
+				PublishedIDs: []int64{msg1.ID},
 			},
 			wantErr: true,
 		},
@@ -115,12 +112,12 @@ func TestForwarder_Forward(t *testing.T) {
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 				publisherMock.On("Publish", ctx, msg2).Return(nil)
 
-				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(1, nil)
+				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return([]int64{msg1.ID}, nil)
 			},
-			stats: types.ForwardStats{
-				Read:      2,
-				Published: 2,
-				Acked:     1,
+			stats: types.ForwardOutput{
+				Read:         types.Messages{msg1, msg2},
+				PublishedIDs: []int64{msg1.ID, msg2.ID},
+				AckedIDs:     []int64{msg1.ID},
 			},
 		},
 		{
@@ -133,12 +130,11 @@ func TestForwarder_Forward(t *testing.T) {
 				publisherMock.On("Publish", ctx, msg1).Return(nil)
 				publisherMock.On("Publish", ctx, msg2).Return(nil)
 
-				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(0, errors.New("failed"))
+				readerMock.On("Ack", ctx, []int64{msg1.ID, msg2.ID}).Return(nil, errors.New("failed"))
 			},
-			stats: types.ForwardStats{
-				Read:      2,
-				Published: 2,
-				Acked:     0,
+			stats: types.ForwardOutput{
+				Read:         types.Messages{msg1, msg2},
+				PublishedIDs: []int64{msg1.ID, msg2.ID},
 			},
 			wantErr: true,
 		},

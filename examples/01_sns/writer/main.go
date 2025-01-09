@@ -23,7 +23,7 @@ const (
 	defaultInterval = 1500 * time.Millisecond
 
 	defaultTracingEndpoint = "localhost:4317"
-	tracerName             = "pgx-outbox-writer"
+	tracerName             = "pgx-outbox/writer"
 )
 
 func main() {

@@ -66,7 +66,8 @@ func (r *repo) CreateUser(ctx context.Context, user User) (u User, txErr error) 
 		return u, fmt.Errorf("mapper: %w", err)
 	}
 	message.Metadata = map[string]string{
-		types.MetadataTraceID: span.SpanContext().TraceID().String(),
+		tracing.MetadataTraceID: span.SpanContext().TraceID().String(),
+		tracing.MetadataSpanID:  span.SpanContext().SpanID().String(),
 	}
 
 	if _, err := r.writer.Write(ctx, tx, message); err != nil {

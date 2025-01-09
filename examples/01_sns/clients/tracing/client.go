@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -17,7 +18,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const OffEndpoint = "off"
+const (
+	MetadataTraceID = "trace_id"
+	MetadataSpanID  = "span_id"
+
+	OffEndpoint = "off"
+)
 
 func InitGrpcTracer(ctx context.Context, endpoint, serviceName string) (func(), error) {
 	if strings.ToLower(endpoint) == OffEndpoint {
@@ -44,6 +50,7 @@ func InitGrpcTracer(ctx context.Context, endpoint, serviceName string) (func(), 
 	tp := trace.NewTracerProvider(
 		trace.WithBatcher(exporter),
 		trace.WithResource(res),
+		trace.WithSampler(trace.AlwaysSample()),
 	)
 	if tp == nil {
 		return nil, fmt.Errorf("trace.NewTracerProvider returned nil")
@@ -58,9 +65,9 @@ func InitGrpcTracer(ctx context.Context, endpoint, serviceName string) (func(), 
 	}, nil
 }
 
-func StartSpan(ctx context.Context, tracerName, spanName string) (context.Context, otelTrace.Span, func(err error)) {
+func StartSpan(ctx context.Context, tracerName, spanName string, opts ...otelTrace.SpanStartOption) (context.Context, otelTrace.Span, func(err error)) {
 	tracer := otel.Tracer(tracerName)
-	ctx, span := tracer.Start(ctx, spanName)
+	ctx, span := tracer.Start(ctx, spanName, opts...)
 
 	// Return a function to finish the span
 	finishFunc := func(err error) {
@@ -74,4 +81,47 @@ func StartSpan(ctx context.Context, tracerName, spanName string) (context.Contex
 	}
 
 	return ctx, span, finishFunc
+}
+
+func AddLink(span otelTrace.Span, traceID, spanID string) {
+	parsedTraceID, err := otelTrace.TraceIDFromHex(traceID)
+	if err != nil {
+		span.SetAttributes(attribute.String("add_link_error", err.Error()))
+		return
+	}
+
+	parsedSpanID, err := otelTrace.SpanIDFromHex(spanID)
+	if err != nil {
+		span.SetAttributes(attribute.String("add_link_error", err.Error()))
+		return
+	}
+
+	linkedSpanContext := otelTrace.NewSpanContext(otelTrace.SpanContextConfig{
+		TraceID: parsedTraceID,
+		SpanID:  parsedSpanID,
+		Remote:  true,
+	})
+	link := otelTrace.Link{SpanContext: linkedSpanContext}
+
+	span.AddLink(link)
+}
+
+func ChildContext(ctx context.Context, traceID, spanID string) context.Context {
+	parsedTraceID, err := otelTrace.TraceIDFromHex(traceID)
+	if err != nil {
+		return ctx
+	}
+
+	parsedSpanID, err := otelTrace.SpanIDFromHex(spanID)
+	if err != nil {
+		return ctx
+	}
+
+	spanContext := otelTrace.NewSpanContext(otelTrace.SpanContextConfig{
+		TraceID: parsedTraceID,
+		SpanID:  parsedSpanID,
+		Remote:  true,
+	})
+
+	return otelTrace.ContextWithSpanContext(ctx, spanContext)
 }

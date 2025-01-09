@@ -9,13 +9,14 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsSqs "github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	sqsTypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/nikolayk812/pgx-outbox/types"
 )
 
 type Client interface {
 	GetQueueURL(ctx context.Context, queueName string) (string, error)
-	ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (types.Message, error)
-	ExtractOutboxPayload(message types.Message) ([]byte, error)
+	ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (sqsTypes.Message, error)
+	ToOutboxMessage(message sqsTypes.Message) (types.Message, error)
 }
 
 type client struct {
@@ -44,7 +45,7 @@ func (c *client) GetQueueURL(ctx context.Context, queueName string) (string, err
 	return *output.QueueUrl, nil
 }
 
-func (c *client) ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (m types.Message, _ error) {
+func (c *client) ReadOneFromSQS(ctx context.Context, queueUrl string, timeout time.Duration) (m sqsTypes.Message, _ error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -81,19 +82,39 @@ func (c *client) ReadOneFromSQS(ctx context.Context, queueUrl string, timeout ti
 	}
 }
 
-func (c *client) ExtractOutboxPayload(message types.Message) ([]byte, error) {
+func (c *client) ToOutboxMessage(message sqsTypes.Message) (m types.Message, _ error) {
 	if message.Body == nil {
-		return nil, fmt.Errorf("message.Body is nil")
+		return m, fmt.Errorf("message.Body is nil")
 	}
 
 	var snsMsg events.SNSEntity
 	if err := json.Unmarshal([]byte(*message.Body), &snsMsg); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal: %w", err)
+		return m, fmt.Errorf("json.Unmarshal: %w", err)
 	}
 
 	if snsMsg.Type != "Notification" {
-		return nil, fmt.Errorf("snsMsg.Type is not Notification: [%s]", snsMsg.Type)
+		return m, fmt.Errorf("snsMsg.Type is not Notification: [%s]", snsMsg.Type)
 	}
 
-	return []byte(snsMsg.Message), nil
+	metadata := map[string]string{}
+
+	for k, v := range snsMsg.MessageAttributes {
+		if v == nil {
+			continue
+		}
+
+		if mam, ok := v.(map[string]interface{}); ok {
+			// another key is Type, strange structure
+			if str, ok := mam["Value"].(string); ok {
+				metadata[k] = str
+			}
+		}
+	}
+
+	return types.Message{
+		Broker:   "sns",
+		Topic:    snsMsg.TopicArn,
+		Metadata: metadata,
+		Payload:  []byte(snsMsg.Message),
+	}, nil
 }

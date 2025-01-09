@@ -16,22 +16,24 @@ type Reader struct {
 }
 
 // Ack provides a mock function with given fields: ctx, ids
-func (_m *Reader) Ack(ctx context.Context, ids []int64) (int, error) {
+func (_m *Reader) Ack(ctx context.Context, ids []int64) ([]int64, error) {
 	ret := _m.Called(ctx, ids)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Ack")
 	}
 
-	var r0 int
+	var r0 []int64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []int64) (int, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []int64) ([]int64, error)); ok {
 		return rf(ctx, ids)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, []int64) int); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []int64) []int64); ok {
 		r0 = rf(ctx, ids)
 	} else {
-		r0 = ret.Get(0).(int)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]int64)
+		}
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, []int64) error); ok {

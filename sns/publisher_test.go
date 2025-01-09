@@ -127,7 +127,7 @@ func (suite *PublisherTestSuite) noError(err error) {
 
 type simpleTransformer struct{}
 
-func (t simpleTransformer) Transform(message types.Message) (*awsSns.PublishInput, error) {
+func (t simpleTransformer) Transform(_ context.Context, message types.Message) (*awsSns.PublishInput, error) {
 	return &awsSns.PublishInput{
 		Message:  aws.String(string(message.Payload)),
 		TopicArn: &message.Topic,
