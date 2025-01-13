@@ -11,7 +11,7 @@
 
 # pgx-outbox
 
-This is a simple Golang implementation for [transactional outbox](https://microservices.io/patterns/data/transactional-outbox.html) pattern for PostgreSQL using [jackc/pgx](https://github.com/jackc/pgx) driver.
+This is a simple Golang implementation for [transactional outbox](https://microservices.io/patterns/data/transactional-outbox.html) pattern to solve [dual writes](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html) problem for PostgreSQL using [jackc/pgx](https://github.com/jackc/pgx) driver.
 
 More advanced options are described in [Revisiting the Outbox Pattern](https://www.decodable.co/blog/revisiting-the-outbox-pattern) article by [Gunnar Morling](https://github.com/gunnarmorling).
 
@@ -63,16 +63,18 @@ Start using the `writer.Write` method in the repository methods which should pro
 func (r *repo) CreateUser(ctx context.Context, user User) (u User, txErr error) {
 	// create a transaction, commit/rollback in defer() depending on txErr
 
+	// INSERT INTO users table under-the-hood
 	user, err = r.createUser(ctx, tx, user)
 	if err != nil {
 		return u, fmt.Errorf("createUser: %w", err)
 	}
-
+	
 	message, err := r.messageMapper(user)
 	if err != nil {
 		return u, fmt.Errorf("messageMapper: %w", err)
 	}
 
+	// INSERT INTO outbox_messages table under-the-hood
 	if _, err := r.writer.Write(ctx, tx, message); err != nil {
 		return u, fmt.Errorf("writer.Write: %w", err)
 	}
@@ -135,3 +137,4 @@ Source code and instructions for the example are located in the [examples/01_sns
 - [Trendyol/go-pq-cdc](https://github.com/Trendyol/go-pq-cdc) - Change Data Capture (CDC) library for PostgreSQL
 - [watermill-sql](https://github.com/ThreeDotsLabs/watermill-sql) - PostgreSQL Pub/Sub for Watermill
 - [dataddo/pgq](https://github.com/dataddo/pgq) - Go queue implementation using PostgreSQL
+- [pkritiotis/go-outbox](https://github.com/pkritiotis/go-outbox) - for MySQL and Kafka
