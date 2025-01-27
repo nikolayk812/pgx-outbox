@@ -55,6 +55,8 @@ func (c pgCustomizer) Customize(req *testcontainers.GenericContainerRequest) err
 		}
 	}
 
+	req.Cmd = append(req.Cmd, []string{"-c", "wal_level=logical"}...)
+
 	return nil
 }
 

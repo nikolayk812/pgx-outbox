@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17.2-alpine
+    container_name: postgres
+    command: ["-c", "wal_level=logical"]
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+    ports:
+      - "5432:5432"
+    volumes:
+      - ../../internal/sql/01_outbox_messages.up.sql:/docker-entrypoint-initdb.d/01_outbox_messages.up.sql
+      - ../../internal/sql/02_users.up.sql:/docker-entrypoint-initdb.d/02_users.up.sql

@@ -17,7 +17,11 @@ func FakeMessage() types.Message {
 		}
 	}
 
-	p := payload{Content: gofakeit.Quote()}
+	p := payload{
+		Content: gofakeit.Quote(),
+		Name:    gofakeit.Name(),
+	}
+
 	pp, _ := json.Marshal(p)
 
 	return types.Message{
@@ -30,4 +34,5 @@ func FakeMessage() types.Message {
 
 type payload struct {
 	Content string `json:"content"`
+	Name    string `json:"name"`
 }
