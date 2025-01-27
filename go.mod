@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sns v1.33.10
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.6
 	github.com/brianvoe/gofakeit v3.18.0+incompatible
-	github.com/docker/docker v27.4.1+incompatible
+	github.com/docker/docker v27.5.1+incompatible
 	github.com/go-playground/validator/v10 v10.24.0
 	github.com/google/go-cmp v0.6.0
 	github.com/jackc/pgx/v5 v5.7.2
