@@ -21,7 +21,7 @@ func (r *Reader) sendStatusUpdate(ctx context.Context) error {
 		return nil
 	}
 
-	err := pglogrepl.SendStandbyStatusUpdate(ctx, r.conn, pglogrepl.StandbyStatusUpdate{WALWritePosition: r.xLogPos})
+	err := pglogrepl.SendStandbyStatusUpdate(ctx, r.getConn(), pglogrepl.StandbyStatusUpdate{WALWritePosition: r.xLogPos})
 	if err != nil {
 		return fmt.Errorf("pglogrepl.SendStandbyStatusUpdate: %w", err)
 	}
@@ -38,7 +38,7 @@ func toCopyDataStruct(rawMsg pgproto3.BackendMessage) (*pgproto3.CopyData, error
 
 	msg, ok := rawMsg.(*pgproto3.CopyData)
 	if !ok {
-		return nil, fmt.Errorf("unexpected message type: %T", rawMsg)
+		return nil, fmt.Errorf("type[%T]: %w", rawMsg, ErrUnexpectedMessageType)
 	}
 
 	if len(msg.Data) <= 2 {

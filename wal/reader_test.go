@@ -66,13 +66,13 @@ func (suite *ReaderTestSuite) SetupSuite() {
 
 func (suite *ReaderTestSuite) TearDownSuite() {
 	if suite.reader != nil {
-		suite.noError(suite.reader.Close(ctx))
+		suite.reader.Close()
 	}
 	if suite.pool != nil {
 		suite.pool.Close()
 	}
 	if suite.container != nil {
-		suite.NoError(suite.container.Terminate(ctx))
+		suite.noError(suite.container.Terminate(ctx))
 	}
 
 	goleak.VerifyNone(suite.T())
@@ -198,7 +198,7 @@ func (suite *ReaderTestSuite) TestReader_Start() {
 
 			reader2, err := wal.NewReader(tt.connStr, tt.table, tt.publication, tt.slot)
 			require.NoError(t, err)
-			defer reader2.Close(ctx)
+			defer reader2.Close()
 
 			_, err = reader2.Start(ctx)
 			if tt.wantErr != nil {

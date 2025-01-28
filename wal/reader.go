@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pglogrepl"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgtype"
 	outbox "github.com/nikolayk812/pgx-outbox"
 )
@@ -24,9 +25,23 @@ const (
 	ConnectionStrReplicationDatabaseParam = "replication=database"
 )
 
+// Requirements:
+// - Postgres 15 or higher
+// -
+//
+// Limitations:
+// - pgoutput built-in Postgres plugin only; wal2json, decoderbufs are not supported
+// - single table per publication / replication slot
+// - logical replication protocol v2 only; v3 and v4 are not supported
+// - only insert operations are supported
+// - pg_logical_emit_message() is not supported
+// - transaction streaming is not supported
+// - custom types are not supported
+
 type Reader struct {
-	connStr string
-	conn    *pgconn.PgConn
+	connStr  string
+	conn     *pgconn.PgConn
+	connLock sync.Mutex // as pgconn.PgConn is not concurrency-safe
 
 	table         string
 	publication   string
@@ -35,6 +50,7 @@ type Reader struct {
 
 	onceStart sync.Once
 	onceClose sync.Once
+	closeCh   chan struct{}
 
 	standbyTimeout      time.Duration
 	nextStandbyDeadline time.Time
@@ -71,6 +87,7 @@ func NewReader(connStr, table, publication, slot string, opts ...ReadOption) (*R
 		relations:      map[uint32]*pglogrepl.RelationMessageV2{},
 		typeMap:        pgtype.NewMap(),
 		channelBuffer:  defaultChannelBuffer,
+		closeCh:        make(chan struct{}),
 	}
 
 	for _, opt := range opts {
@@ -87,16 +104,19 @@ func (r *Reader) Start(ctx context.Context) (<-chan RawMessage, error) {
 
 	r.onceStart.Do(func() {
 		onceErr = r.start(ctx)
+		if onceErr != nil {
+			return
+		}
+
+		go func() {
+			if err := r.startLoop(ctx); err != nil {
+				slog.Error("startLoop", "error", err)
+			}
+		}()
 	})
 	if onceErr != nil {
 		return nil, fmt.Errorf("start: %w", onceErr)
 	}
-
-	go func() {
-		if err := r.startLoop(ctx); err != nil {
-			slog.Error("startLoop", "error", err)
-		}
-	}()
 
 	return r.rawMessages, nil
 }
@@ -130,131 +150,44 @@ func (r *Reader) connect(ctx context.Context) error {
 		return fmt.Errorf("pgconn.Connect: %w", err)
 	}
 
-	r.conn = conn
+	r.setConn(conn)
 
 	return nil
 }
 
-func (r *Reader) createPublication(ctx context.Context) error {
-	query := fmt.Sprintf("CREATE PUBLICATION %s FOR TABLE %s WITH (publish = 'insert')", r.publication, r.table)
-
-	result := r.conn.Exec(ctx, query)
-	defer closeResource("create_publication_query_result", result)
-
-	_, err := result.ReadAll()
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == "42P01" { // SQLSTATE for "relation does not exist"
-				return ErrTableNotFound
-			}
-		}
-		return fmt.Errorf("result.ReadAll: %w", err)
-	}
-
-	return nil
-}
-
-// it is not checking other fields: table name, pubinsert, pubupdate, pubdelete, etc.
-func (r *Reader) publicationExists(ctx context.Context) (bool, error) {
-	query := fmt.Sprintf("SELECT pubname FROM pg_publication WHERE pubname = '%s'", r.publication)
-
-	result := r.conn.Exec(ctx, query)
-	defer closeResource("publication_exists_query_result", result)
-
-	row, err := toRow(result)
-	if err != nil {
-		return false, fmt.Errorf("toRow: %w", err)
-	}
-
-	if len(row) == 0 {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-//nolint:nonamedreturns
-func (r *Reader) replicationSlotExists(ctx context.Context) (exists bool, active bool, _ error) {
-	query := fmt.Sprintf("SELECT active FROM pg_replication_slots WHERE slot_name = '%s'", r.slot)
-
-	result := r.conn.Exec(ctx, query)
-	defer closeResource("replication_slot_exists_query_result", result)
-
-	row, err := toRow(result)
-	if err != nil {
-		return false, false, fmt.Errorf("toRow: %w", err)
-	}
-
-	if len(row) == 0 {
-		return false, false, nil
-	}
-
-	if len(row[0]) > 0 {
-		// 't' is true, 'f' is false
-		return true, row[0][0] == 't', nil
-	}
-
-	return true, false, nil
-}
-
-func (r *Reader) startReplication(ctx context.Context) error {
-	exists, active, err := r.replicationSlotExists(ctx)
-	if err != nil {
-		return fmt.Errorf("replicationSlotExists: %w", err)
-	}
-	if active {
-		return ErrReplicationSlotActive
-	}
-
-	if !exists {
-		if _, err := pglogrepl.CreateReplicationSlot(ctx, r.conn, r.slot, outputPlugin,
-			pglogrepl.CreateReplicationSlotOptions{Temporary: !r.permanentSlot}); err != nil {
-			return fmt.Errorf("pglogrepl.CreateReplicationSlot: %w", err)
-		}
-	}
-
-	sysIdent, err := pglogrepl.IdentifySystem(ctx, r.conn)
-	if err != nil {
-		return fmt.Errorf("pglogrepl.IdentifySystem: %w", err)
-	}
-
-	r.xLogPos = sysIdent.XLogPos
-
-	pluginArguments := []string{
-		"proto_version '2'", // pglogrepl does not support 3 or 4 at the moment
-		fmt.Sprintf("publication_names '%s'", r.publication),
-		"messages 'false'",  // pg_logical_emit_message() is not used
-		"streaming 'false'", // receive only committed transactions
-	}
-
-	// no need to specify timeline, as 0 means current Postgres server timeline
-	if err := pglogrepl.StartReplication(ctx, r.conn, r.slot, sysIdent.XLogPos,
-		pglogrepl.StartReplicationOptions{PluginArgs: pluginArguments}); err != nil {
-		return fmt.Errorf("pglogrepl.StartReplication: %w", err)
-	}
-
-	return nil
-}
-
+//nolint:cyclop
 func (r *Reader) startLoop(ctx context.Context) error {
 	for {
 		if err := r.sendStatusUpdate(ctx); err != nil {
 			return fmt.Errorf("sendStatusUpdate: %w", err)
 		}
 
-		ctx, cancel := context.WithDeadline(ctx, r.nextStandbyDeadline)
-		rawMsg, err := r.conn.ReceiveMessage(ctx)
-		cancel() // cancel internal timer
-		if err != nil {
-			if pgconn.Timeout(err) {
-				continue
+		var rawMsg pgproto3.BackendMessage
+
+		select {
+		case <-ctx.Done():
+			return r.close(ctx)
+		case <-r.closeCh:
+			return r.close(ctx)
+		default:
+			var err error
+
+			ctx, cancel := context.WithDeadline(ctx, r.nextStandbyDeadline)
+			rawMsg, err = r.getConn().ReceiveMessage(ctx)
+			cancel() // cancel internal timer
+			if err != nil {
+				if pgconn.Timeout(err) {
+					continue
+				}
+				return fmt.Errorf("conn.ReceiveMessage: %w", err)
 			}
-			return fmt.Errorf("conn.ReceiveMessage: %w", err)
 		}
 
 		msg, err := toCopyDataStruct(rawMsg)
 		if err != nil {
+			if errors.Is(err, ErrUnexpectedMessageType) {
+				continue
+			}
 			return fmt.Errorf("toCopyDataStruct: %w", err)
 		}
 
@@ -273,19 +206,32 @@ func (r *Reader) startLoop(ctx context.Context) error {
 	}
 }
 
-func (r *Reader) Close(ctx context.Context) error {
-	var onceErr error
-
+func (r *Reader) Close() {
 	r.onceClose.Do(func() {
-		if r.conn != nil {
-			onceErr = r.conn.Close(ctx)
-		}
-
-		close(r.rawMessages)
+		close(r.closeCh)
 	})
-	if onceErr != nil {
-		return fmt.Errorf("conn.Close: %w", onceErr)
+}
+
+func (r *Reader) close(ctx context.Context) error {
+	defer close(r.rawMessages)
+
+	if err := r.getConn().Close(ctx); err != nil {
+		return fmt.Errorf("conn.Close: %w", err)
 	}
 
 	return nil
+}
+
+func (r *Reader) getConn() *pgconn.PgConn {
+	r.connLock.Lock()
+	defer r.connLock.Unlock()
+
+	return r.conn
+}
+
+func (r *Reader) setConn(conn *pgconn.PgConn) {
+	r.connLock.Lock()
+	defer r.connLock.Unlock()
+
+	r.conn = conn
 }

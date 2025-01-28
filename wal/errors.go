@@ -11,4 +11,6 @@ var (
 	ErrConnectionStrReplicationDatabaseParamAbsent = errors.New("connection string 'replication=database' param is absent")
 
 	ErrTableNotFound = errors.New("table does not exist")
+
+	ErrUnexpectedMessageType = errors.New("unexpected message type")
 )

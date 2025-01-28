@@ -37,7 +37,7 @@ func main() {
 		return
 	}
 	defer func() {
-		reader.Close(ctx)
+		reader.Close()
 	}()
 
 	rawMessages, err := reader.Start(ctx)
