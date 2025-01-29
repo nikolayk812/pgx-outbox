@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -20,7 +19,7 @@ const (
 	outputPlugin = "pgoutput"
 
 	defaultStandbyTimeout = time.Second * 10
-	defaultChannelBuffer  = 10_000
+	defaultChannelBuffer  = 1_000
 
 	ConnectionStrReplicationDatabaseParam = "replication=database"
 )
@@ -59,8 +58,9 @@ type Reader struct {
 	relations map[uint32]*pglogrepl.RelationMessageV2
 	typeMap   *pgtype.Map
 
-	channelBuffer int
-	rawMessages   chan RawMessage
+	messageBuffer int
+	messageCh     chan RawMessage
+	errorCh       chan error
 }
 
 func NewReader(connStr, table, publication, slot string, opts ...ReadOption) (*Reader, error) {
@@ -79,27 +79,29 @@ func NewReader(connStr, table, publication, slot string, opts ...ReadOption) (*R
 	}
 
 	r := &Reader{
-		connStr:        connStr,
-		table:          table,
-		publication:    publication,
-		slot:           slot,
-		standbyTimeout: defaultStandbyTimeout,
-		relations:      map[uint32]*pglogrepl.RelationMessageV2{},
-		typeMap:        pgtype.NewMap(),
-		channelBuffer:  defaultChannelBuffer,
-		closeCh:        make(chan struct{}),
+		connStr:             connStr,
+		table:               table,
+		publication:         publication,
+		slot:                slot,
+		standbyTimeout:      defaultStandbyTimeout,
+		nextStandbyDeadline: time.Now(),
+		relations:           map[uint32]*pglogrepl.RelationMessageV2{},
+		typeMap:             pgtype.NewMap(),
+		messageBuffer:       defaultChannelBuffer,
+		closeCh:             make(chan struct{}),
+		errorCh:             make(chan error, 1),
 	}
 
 	for _, opt := range opts {
 		opt(r)
 	}
 
-	r.rawMessages = make(chan RawMessage, r.channelBuffer)
+	r.messageCh = make(chan RawMessage, r.messageBuffer)
 
 	return r, nil
 }
 
-func (r *Reader) Start(ctx context.Context) (<-chan RawMessage, error) {
+func (r *Reader) Start(ctx context.Context) (<-chan RawMessage, <-chan error, error) {
 	var onceErr error
 
 	r.onceStart.Do(func() {
@@ -109,16 +111,20 @@ func (r *Reader) Start(ctx context.Context) (<-chan RawMessage, error) {
 		}
 
 		go func() {
+			defer close(r.errorCh)
+
+			// blocking call
 			if err := r.startLoop(ctx); err != nil {
-				slog.Error("startLoop", "error", err)
+				r.errorCh <- err
+				return
 			}
 		}()
 	})
 	if onceErr != nil {
-		return nil, fmt.Errorf("start: %w", onceErr)
+		return nil, nil, fmt.Errorf("start: %w", onceErr)
 	}
 
-	return r.rawMessages, nil
+	return r.messageCh, r.errorCh, nil
 }
 
 func (r *Reader) start(ctx context.Context) error {
@@ -157,8 +163,13 @@ func (r *Reader) connect(ctx context.Context) error {
 
 //nolint:cyclop
 func (r *Reader) startLoop(ctx context.Context) error {
+	defer r.close(ctx)
+
 	for {
 		if err := r.sendStatusUpdate(ctx); err != nil {
+			if r.getConn().IsClosed() {
+				return fmt.Errorf("sendStatusUpdate[closed]: %w", err)
+			}
 			return fmt.Errorf("sendStatusUpdate: %w", err)
 		}
 
@@ -166,9 +177,9 @@ func (r *Reader) startLoop(ctx context.Context) error {
 
 		select {
 		case <-ctx.Done():
-			return r.close(ctx)
+			return ctx.Err()
 		case <-r.closeCh:
-			return r.close(ctx)
+			return nil
 		default:
 			var err error
 
@@ -176,6 +187,9 @@ func (r *Reader) startLoop(ctx context.Context) error {
 			rawMsg, err = r.getConn().ReceiveMessage(ctx)
 			cancel() // cancel internal timer
 			if err != nil {
+				if r.getConn().IsClosed() {
+					return fmt.Errorf("conn.ReceiveMessage[closed]: %w", err)
+				}
 				if pgconn.Timeout(err) {
 					continue
 				}
@@ -212,14 +226,10 @@ func (r *Reader) Close() {
 	})
 }
 
-func (r *Reader) close(ctx context.Context) error {
-	defer close(r.rawMessages)
+func (r *Reader) close(ctx context.Context) {
+	_ = r.getConn().Close(ctx)
 
-	if err := r.getConn().Close(ctx); err != nil {
-		return fmt.Errorf("conn.Close: %w", err)
-	}
-
-	return nil
+	close(r.messageCh)
 }
 
 func (r *Reader) getConn() *pgconn.PgConn {

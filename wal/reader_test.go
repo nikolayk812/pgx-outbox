@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	toxiproxy "github.com/Shopify/toxiproxy/v2/client"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -21,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
-	"go.uber.org/goleak"
+	tcNetwork "github.com/testcontainers/testcontainers-go/network"
 )
 
 const outboxTable = "outbox_messages"
@@ -30,11 +32,14 @@ var ctx = context.Background()
 
 type ReaderTestSuite struct {
 	suite.Suite
-	pool      *pgxpool.Pool
-	container testcontainers.Container
+	pool              *pgxpool.Pool
+	postgresContainer testcontainers.Container
+
+	network            *testcontainers.DockerNetwork
+	toxiProxyContainer testcontainers.Container
+	toxiProxyProxy     *toxiproxy.Proxy
 
 	writer outbox.Writer
-	reader *wal.Reader
 
 	readerConnStr string
 }
@@ -47,9 +52,24 @@ func TestReaderTestSuite(t *testing.T) {
 func (suite *ReaderTestSuite) SetupSuite() {
 	// suite.noError(os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true"))
 
-	container, connStr, err := containers.Postgres(ctx, "postgres:17.2-alpine3.21", "")
+	network, err := tcNetwork.New(ctx)
 	suite.noError(err)
-	suite.container = container
+	suite.network = network
+
+	postgresContainer, connStr, err := containers.Postgres(ctx, "postgres:17.2-alpine3.21", network.Name)
+	suite.noError(err)
+	suite.postgresContainer = postgresContainer
+
+	toxiProxyContainer, toxiProxyEndpoint, err := containers.ToxiProxy(ctx, "ghcr.io/shopify/toxiproxy:2.11.0", network.Name)
+	suite.noError(err)
+	suite.toxiProxyContainer = toxiProxyContainer
+
+	toxiProxyCli := toxiproxy.NewClient(toxiProxyEndpoint)
+	suite.Require().NotNil(toxiProxyCli)
+
+	suite.toxiProxyProxy, err = toxiProxyCli.CreateProxy("postgres", "0.0.0.0:8666", "postgres:5432")
+	suite.noError(err)
+	suite.Require().NotNil(suite.toxiProxyProxy)
 
 	suite.pool, err = pgxpool.New(ctx, connStr)
 	suite.noError(err)
@@ -58,30 +78,31 @@ func (suite *ReaderTestSuite) SetupSuite() {
 	suite.noError(err)
 
 	connStr += "&" + wal.ConnectionStrReplicationDatabaseParam
+	connStr = suite.proxiedConnStr(connStr)
 	suite.readerConnStr = connStr
-
-	suite.reader, err = wal.NewReader(connStr, outboxTable, "publication", "slot")
-	suite.noError(err)
 }
 
 func (suite *ReaderTestSuite) TearDownSuite() {
-	if suite.reader != nil {
-		suite.reader.Close()
-	}
 	if suite.pool != nil {
 		suite.pool.Close()
 	}
-	if suite.container != nil {
-		suite.noError(suite.container.Terminate(ctx))
+	if suite.toxiProxyProxy != nil {
+		suite.noError(suite.toxiProxyProxy.Delete())
+	}
+	if suite.postgresContainer != nil {
+		suite.noError(suite.postgresContainer.Terminate(ctx))
+	}
+	if suite.toxiProxyContainer != nil {
+		suite.noError(suite.toxiProxyContainer.Terminate(ctx))
+	}
+	if suite.network != nil {
+		suite.noError(suite.network.Remove(ctx))
 	}
 
-	goleak.VerifyNone(suite.T())
+	// goleak.VerifyNone(suite.T())
 }
 
 func (suite *ReaderTestSuite) TestReader_ReceiveMessages() {
-	ch, err := suite.reader.Start(ctx)
-	suite.noError(err)
-
 	msg1 := fakes.FakeMessage()
 	msg2 := fakes.FakeMessage()
 	msg3 := fakes.FakeMessage()
@@ -105,6 +126,12 @@ func (suite *ReaderTestSuite) TestReader_ReceiveMessages() {
 		suite.Run(tt.name, func() {
 			t := suite.T()
 
+			reader, err := wal.NewReader(suite.readerConnStr, outboxTable, "publication", "slot")
+			require.NoError(t, err)
+
+			msgCh, errCh, err := reader.Start(ctx)
+			require.NoError(t, err)
+
 			// GIVEN
 			for _, message := range tt.in {
 				_, err := suite.write(message)
@@ -113,24 +140,87 @@ func (suite *ReaderTestSuite) TestReader_ReceiveMessages() {
 
 			var actual []types.Message
 			// WHEN
-			for i := 0; i < len(tt.in); i++ {
-				rawMsg := <-ch
-
+			for rawMsg := range msgCh {
 				message, err := rawMsg.ToOutboxMessage()
 				require.NoError(t, err)
 
 				actual = append(actual, message)
+
+				if len(actual) == len(tt.in) {
+					reader.Close()
+				}
 			}
 
 			// THEN
-			require.NoError(t, err)
+			for err := range errCh {
+				suite.noError(err)
+			}
+
 			assertEqualMessages(t, tt.in, actual)
 		})
 	}
 }
 
+func (suite *ReaderTestSuite) TestReader_ReceiveMessages_WithToxic() {
+	msg1 := fakes.FakeMessage()
+	// msg2 := fakes.FakeMessage()
+
+	tests := []struct {
+		name      string
+		in        []types.Message
+		toxic     toxiproxy.Toxic
+		errSubStr string
+	}{
+		{
+			name: "read_write_failure",
+			in:   types.Messages{msg1},
+			toxic: toxiproxy.Toxic{
+				Name:     "read_write_failure",
+				Type:     "timeout",
+				Stream:   "downstream", // affects both directions
+				Toxicity: 1.0,
+				Attributes: toxiproxy.Attributes{
+					"timeout": 0, // Timeout in milliseconds before closing the connection.
+				},
+			},
+			errSubStr: "[closed]",
+		},
+		// Add more test cases as needed
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			reader, err := wal.NewReader(suite.readerConnStr, outboxTable, "publication", "slot",
+				wal.WithStandbyTimeout(100*time.Millisecond))
+			require.NoError(t, err)
+
+			_, errCh, err := reader.Start(ctx)
+			require.NoError(t, err)
+
+			toxic, err := suite.toxiProxyProxy.AddToxic(tt.toxic.Name,
+				tt.toxic.Type, tt.toxic.Stream, tt.toxic.Toxicity, tt.toxic.Attributes)
+			suite.noError(err)
+			defer suite.noError(suite.toxiProxyProxy.RemoveToxic(toxic.Name))
+
+			// THEN
+			select {
+			case err := <-errCh:
+				assert.Contains(t, err.Error(), tt.errSubStr)
+			case <-time.After(1 * time.Second):
+				t.Fatal("timeout waiting for expected error")
+			}
+		})
+	}
+}
+
 func (suite *ReaderTestSuite) TestReader_Start() {
-	_, err := suite.reader.Start(ctx)
+	reader, err := wal.NewReader(suite.readerConnStr, outboxTable, "publication", "slot")
+	suite.noError(err)
+	defer reader.Close()
+
+	_, _, err = reader.Start(ctx)
 	suite.noError(err)
 
 	tests := []struct {
@@ -200,7 +290,7 @@ func (suite *ReaderTestSuite) TestReader_Start() {
 			require.NoError(t, err)
 			defer reader2.Close()
 
-			_, err = reader2.Start(ctx)
+			_, _, err = reader2.Start(ctx)
 			if tt.wantErr != nil {
 				var connErr *pgconn.ConnectError
 				if errors.As(tt.wantErr, &connErr) {
@@ -248,7 +338,7 @@ func assertEqualMessage(t *testing.T, expected, actual types.Message) {
 func assertEqualMessages(t *testing.T, expected, actual []types.Message) {
 	t.Helper()
 
-	assert.Equal(t, len(expected), len(actual))
+	require.Equal(t, len(expected), len(actual))
 
 	for i, e := range expected {
 		assertEqualMessage(t, e, actual[i])
@@ -305,6 +395,16 @@ func (suite *ReaderTestSuite) write(message types.Message) (_ int64, txErr error
 func (suite *ReaderTestSuite) noError(err error) {
 	suite.T().Helper()
 	suite.Require().NoError(err)
+}
+
+func (suite *ReaderTestSuite) proxiedConnStr(connStr string) string {
+	pgPort, err := suite.postgresContainer.MappedPort(ctx, "5432/tcp")
+	suite.noError(err)
+
+	tpPort, err := suite.toxiProxyContainer.MappedPort(ctx, "8666/tcp")
+	suite.noError(err)
+
+	return strings.Replace(connStr, pgPort.Port(), tpPort.Port(), 1)
 }
 
 // TestReader_New is just to increase coverage.

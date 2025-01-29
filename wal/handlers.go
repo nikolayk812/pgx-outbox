@@ -104,10 +104,10 @@ func (r *Reader) processV2(walData []byte) error {
 		}
 
 		select {
-		case r.rawMessages <- rawMessage:
+		case r.messageCh <- rawMessage:
 			return nil
 		default:
-			return fmt.Errorf("rawMessages channel is full")
+			return fmt.Errorf("messageCh channel is full")
 		}
 	}
 

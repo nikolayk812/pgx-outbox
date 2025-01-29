@@ -40,13 +40,17 @@ func main() {
 		reader.Close()
 	}()
 
-	rawMessages, err := reader.Start(ctx)
+	messageCh, errorCh, err := reader.Start(ctx)
 	if err != nil {
 		gErr = fmt.Errorf("reader.Start: %w", err)
 		return
 	}
 
-	for rawMessage := range rawMessages {
+	for rawMessage := range messageCh {
 		slog.Info("Received raw message", "message", rawMessage)
+	}
+
+	for err := range errorCh {
+		slog.Error("Error from reader", "error", err)
 	}
 }

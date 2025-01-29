@@ -18,6 +18,6 @@ func WithStandbyTimeout(timeout time.Duration) ReadOption {
 
 func WithChannelBuffer(buffer int) ReadOption {
 	return func(r *Reader) {
-		r.channelBuffer = buffer
+		r.messageBuffer = buffer
 	}
 }
