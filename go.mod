@@ -6,10 +6,10 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/Shopify/toxiproxy/v2 v2.11.0
 	github.com/aws/aws-lambda-go v1.47.0
-	github.com/aws/aws-sdk-go-v2 v1.36.0
+	github.com/aws/aws-sdk-go-v2 v1.36.1
 	github.com/aws/aws-sdk-go-v2/config v1.29.5
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.58
-	github.com/aws/aws-sdk-go-v2/service/sns v1.33.18
+	github.com/aws/aws-sdk-go-v2/service/sns v1.33.19
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.13
 	github.com/brianvoe/gofakeit v3.18.0+incompatible
 	github.com/docker/docker v27.5.1+incompatible
@@ -30,8 +30,8 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.27 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.31 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.31 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.32 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.32 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.12 // indirect
