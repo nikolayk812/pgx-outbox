@@ -134,7 +134,11 @@ Source code and instructions for the example are located in the [examples/01_sns
 
 ## Alternatives
 
-- [Trendyol/go-pq-cdc](https://github.com/Trendyol/go-pq-cdc) - Change Data Capture (CDC) library for PostgreSQL
 - [watermill-sql](https://github.com/ThreeDotsLabs/watermill-sql) - PostgreSQL Pub/Sub for Watermill
 - [dataddo/pgq](https://github.com/dataddo/pgq) - Go queue implementation using PostgreSQL
-- [pkritiotis/go-outbox](https://github.com/pkritiotis/go-outbox) - for MySQL and Kafka
+- [Trendyol/go-pq-cdc](https://github.com/Trendyol/go-pq-cdc) - Change Data Capture (CDC) library for PostgreSQL
+
+## Selected resources
+
+- [Revisiting the Outbox Pattern](https://www.decodable.co/blog/revisiting-the-outbox-pattern)
+- [Writing a Postgres Logical Replication System in Golang](https://www.dolthub.com/blog/2024-03-08-postgres-logical-replication/)

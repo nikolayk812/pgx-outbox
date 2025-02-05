@@ -47,7 +47,7 @@ func TestPublisherTestSuite(t *testing.T) {
 func (suite *PublisherTestSuite) SetupSuite() {
 	os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
 
-	container, endpoint, err := containers.Localstack(ctx, "localstack/localstack:4.0.3", "sns,sqs", "")
+	container, endpoint, err := containers.Localstack(ctx, "localstack/localstack:4.1.1", "sns,sqs", "")
 	suite.noError(err)
 	suite.container = container
 
