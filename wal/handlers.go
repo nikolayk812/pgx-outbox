@@ -21,8 +21,11 @@ func (r *Reader) sendStatusUpdate(ctx context.Context) error {
 		return nil
 	}
 
-	err := pglogrepl.SendStandbyStatusUpdate(ctx, r.getConn(), pglogrepl.StandbyStatusUpdate{WALWritePosition: r.xLogPos})
-	if err != nil {
+	if err := pglogrepl.SendStandbyStatusUpdate(ctx, r.getConn(), pglogrepl.StandbyStatusUpdate{
+		WALWritePosition: r.lastReceivedLSN,
+		WALFlushPosition: r.lastProcessedLSN,
+		WALApplyPosition: r.lastProcessedLSN,
+	}); err != nil {
 		return fmt.Errorf("pglogrepl.SendStandbyStatusUpdate: %w", err)
 	}
 
@@ -54,10 +57,11 @@ func (r *Reader) handlePrimaryKeepalive(data []byte) error {
 		return fmt.Errorf("pglogrepl.ParsePrimaryKeepaliveMessage: %w", err)
 	}
 
-	if pkm.ServerWALEnd > r.xLogPos {
+	if pkm.ServerWALEnd > r.lastReceivedLSN {
 		// looks weird but Logical replication clients don’t need to process every byte of the WAL,
 		// as they only care about specific changes (e.g., those related to a publication).
-		r.xLogPos = pkm.ServerWALEnd
+		r.lastReceivedLSN = pkm.ServerWALEnd
+		r.lastProcessedLSN = pkm.ServerWALEnd
 	}
 
 	if pkm.ReplyRequested {
@@ -73,6 +77,10 @@ func (r *Reader) handleXLogData(data []byte) error {
 		return fmt.Errorf("pglogrepl.ParseXLogData: %w", err)
 	}
 
+	if xld.ServerWALEnd > r.lastReceivedLSN {
+		r.lastReceivedLSN = xld.ServerWALEnd
+	}
+
 	// log.Printf("XLogData => WALStart %s ServerWALEnd %s ServerTime %s WALData:\n",
 	//	xld.WALStart, xld.ServerWALEnd, xld.ServerTime)
 
@@ -80,8 +88,8 @@ func (r *Reader) handleXLogData(data []byte) error {
 		return fmt.Errorf("processV2: %w", err)
 	}
 
-	if xld.WALStart > r.xLogPos {
-		r.xLogPos = xld.WALStart
+	if xld.ServerWALEnd > r.lastProcessedLSN {
+		r.lastProcessedLSN = xld.ServerWALEnd
 	}
 
 	return nil
@@ -131,7 +139,7 @@ func (r *Reader) handleInsert(msg *pglogrepl.InsertMessageV2) (RawMessage, error
 		case 'n': // null
 			rawMessage[column.Name] = nil
 		case 'u': // unchanged toast
-			// This TOAST value was not changed. TOAST values are not stored in the tuple, and logical replication doesn't want to spend a disk read to fetch its value for you.
+			// For INSERT operations, this shouldn't happen, but we should handle it anyway
 		case 't': // text
 			val, err := r.decodeTextColumnData(col.Data, column.DataType)
 			if err != nil {

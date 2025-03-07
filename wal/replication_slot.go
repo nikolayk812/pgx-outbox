@@ -52,7 +52,8 @@ func (r *Reader) startReplication(ctx context.Context) error {
 		return fmt.Errorf("pglogrepl.IdentifySystem: %w", err)
 	}
 
-	r.xLogPos = sysIdent.XLogPos
+	r.lastReceivedLSN = sysIdent.XLogPos
+	r.lastProcessedLSN = sysIdent.XLogPos
 
 	pluginArguments := []string{
 		"proto_version '2'", // pglogrepl does not support 3 or 4 at the moment

@@ -54,8 +54,10 @@ type Reader struct {
 	standbyTimeout      time.Duration
 	nextStandbyDeadline time.Time
 
-	xLogPos   pglogrepl.LSN
-	relations map[uint32]*pglogrepl.RelationMessageV2
+	lastReceivedLSN  pglogrepl.LSN
+	lastProcessedLSN pglogrepl.LSN
+
+	relations map[uint32]*pglogrepl.RelationMessageV2 // to maintain tables schemas as they are sent once
 	typeMap   *pgtype.Map
 
 	messageBuffer int
