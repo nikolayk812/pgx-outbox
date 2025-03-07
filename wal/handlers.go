@@ -21,10 +21,12 @@ func (r *Reader) sendStatusUpdate(ctx context.Context) error {
 		return nil
 	}
 
+	lastProcessedLSN := pglogrepl.LSN(r.lastProcessedLSN.Load())
+
 	if err := pglogrepl.SendStandbyStatusUpdate(ctx, r.getConn(), pglogrepl.StandbyStatusUpdate{
 		WALWritePosition: r.lastReceivedLSN,
-		WALFlushPosition: r.lastProcessedLSN,
-		WALApplyPosition: r.lastProcessedLSN,
+		WALFlushPosition: lastProcessedLSN,
+		WALApplyPosition: lastProcessedLSN,
 	}); err != nil {
 		return fmt.Errorf("pglogrepl.SendStandbyStatusUpdate: %w", err)
 	}
@@ -61,7 +63,7 @@ func (r *Reader) handlePrimaryKeepalive(data []byte) error {
 		// looks weird but Logical replication clients don’t need to process every byte of the WAL,
 		// as they only care about specific changes (e.g., those related to a publication).
 		r.lastReceivedLSN = pkm.ServerWALEnd
-		r.lastProcessedLSN = pkm.ServerWALEnd
+		r.updateLastProcessedLSN(pkm.ServerWALEnd)
 	}
 
 	if pkm.ReplyRequested {
@@ -88,9 +90,7 @@ func (r *Reader) handleXLogData(data []byte) error {
 		return fmt.Errorf("processV2: %w", err)
 	}
 
-	if xld.ServerWALEnd > r.lastProcessedLSN {
-		r.lastProcessedLSN = xld.ServerWALEnd
-	}
+	r.updateLastProcessedLSN(xld.ServerWALEnd)
 
 	return nil
 }
@@ -138,8 +138,8 @@ func (r *Reader) handleInsert(msg *pglogrepl.InsertMessageV2) (RawMessage, error
 		switch col.DataType {
 		case 'n': // null
 			rawMessage[column.Name] = nil
-		case 'u': // unchanged toast
-			// For INSERT operations, this shouldn't happen, but we should handle it anyway
+		case 'u': // TOAST unchanged
+			// For INSERT operations, this shouldn't happen
 		case 't': // text
 			val, err := r.decodeTextColumnData(col.Data, column.DataType)
 			if err != nil {

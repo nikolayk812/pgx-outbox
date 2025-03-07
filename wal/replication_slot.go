@@ -53,7 +53,7 @@ func (r *Reader) startReplication(ctx context.Context) error {
 	}
 
 	r.lastReceivedLSN = sysIdent.XLogPos
-	r.lastProcessedLSN = sysIdent.XLogPos
+	r.updateLastProcessedLSN(sysIdent.XLogPos)
 
 	pluginArguments := []string{
 		"proto_version '2'", // pglogrepl does not support 3 or 4 at the moment

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pglogrepl"
@@ -55,7 +56,7 @@ type Reader struct {
 	nextStandbyDeadline time.Time
 
 	lastReceivedLSN  pglogrepl.LSN
-	lastProcessedLSN pglogrepl.LSN
+	lastProcessedLSN atomic.Uint64
 
 	relations map[uint32]*pglogrepl.RelationMessageV2 // to maintain tables schemas as they are sent once
 	typeMap   *pgtype.Map
@@ -246,4 +247,16 @@ func (r *Reader) setConn(conn *pgconn.PgConn) {
 	defer r.connLock.Unlock()
 
 	r.conn = conn
+}
+
+func (r *Reader) updateLastProcessedLSN(lsn pglogrepl.LSN) {
+	for {
+		current := r.lastProcessedLSN.Load()
+		if lsn <= pglogrepl.LSN(current) {
+			return // Don't update
+		}
+		if r.lastProcessedLSN.CompareAndSwap(current, uint64(lsn)) {
+			return // updated, otherwise continue loop
+		}
+	}
 }
