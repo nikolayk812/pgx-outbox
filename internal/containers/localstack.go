@@ -46,7 +46,10 @@ type lsCustomizer struct {
 }
 
 func (c lsCustomizer) Customize(req *testcontainers.GenericContainerRequest) error {
-	req.Env = map[string]string{"SERVICES": c.Services}
+	req.Env = map[string]string{
+		"SERVICES":               c.Services,
+		"SKIP_SSL_CERT_DOWNLOAD": "true",
+	}
 
 	// This has to match the log message from the initialization script, otherwise "Ready." can be used.
 	req.WaitingFor = wait.ForLog("LocalStack resources initialized successfully.")
