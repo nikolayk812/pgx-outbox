@@ -2,6 +2,8 @@ module github.com/nikolayk812/pgx-outbox
 
 go 1.23.0
 
+toolchain go1.24.1
+
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/Shopify/toxiproxy/v2 v2.11.0
@@ -9,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.9
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.62
-	github.com/aws/aws-sdk-go-v2/service/sns v1.34.1
+	github.com/aws/aws-sdk-go-v2/service/sns v1.34.2
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.38.1
 	github.com/brianvoe/gofakeit v3.18.0+incompatible
 	github.com/docker/docker v28.0.1+incompatible
