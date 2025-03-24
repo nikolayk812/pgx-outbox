@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/Shopify/toxiproxy/v2 v2.11.0
+	github.com/Shopify/toxiproxy/v2 v2.12.0
 	github.com/aws/aws-lambda-go v1.47.0
 	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.9
@@ -99,6 +99,5 @@ require (
 	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
-	google.golang.org/protobuf v1.35.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
