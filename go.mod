@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sns v1.34.1
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.38.1
 	github.com/brianvoe/gofakeit v3.18.0+incompatible
-	github.com/docker/docker v28.0.1+incompatible
+	github.com/docker/docker v28.0.2+incompatible
 	github.com/go-playground/validator/v10 v10.25.0
 	github.com/google/go-cmp v0.7.0
 	github.com/jackc/pglogrepl v0.0.0-20240307033717-828fbfe908e9
