@@ -52,7 +52,7 @@ docker-compose up -d
   <summary>without docker-compose</summary>
 
 ```sh
-docker run -d --name postgres -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password -e POSTGRES_DB=dbname -p 5432:5432 -v $(pwd)/../../internal/sql/01_outbox_messages.up.sql:/docker-entrypoint-initdb.d/01_outbox_messages.up.sql -v $(pwd)/../../internal/sql/02_users.up.sql:/docker-entrypoint-initdb.d/02_users.up.sql postgres:17.2-alpine
+docker run -d --name postgres -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password -e POSTGRES_DB=dbname -p 5432:5432 -v $(pwd)/../../internal/sql/01_outbox_messages.up.sql:/docker-entrypoint-initdb.d/01_outbox_messages.up.sql -v $(pwd)/../../internal/sql/02_users.up.sql:/docker-entrypoint-initdb.d/02_users.up.sql postgres:17.5-alpine3.22
 ```
 
 ```sh
@@ -67,8 +67,8 @@ Then using `docker ps` you should see something like this:
 
 ```sh
 CONTAINER ID   IMAGE                         COMMAND                  CREATED          STATUS                   PORTS                                                                NAMES
-fa956368c4d6   localstack/localstack:4.0.3   "docker-entrypoint.sh"   2 minutes ago   Up 2 minutes (healthy)   4510-4559/tcp, 5678/tcp, 0.0.0.0:4566->4566/tcp, :::4566->4566/tcp   localstack
-92d28e5e57af   postgres:17.2-alpine          "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes             0.0.0.0:5432->5432/tcp, :::5432->5432/tcp                            postgres
+fa956368c4d6   localstack/localstack:4.7.0   "docker-entrypoint.sh"   2 minutes ago   Up 2 minutes (healthy)   4510-4559/tcp, 5678/tcp, 0.0.0.0:4566->4566/tcp, :::4566->4566/tcp   localstack
+92d28e5e57af   postgres:17.5-alpine3.22      "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes             0.0.0.0:5432->5432/tcp, :::5432->5432/tcp                            postgres
 ```
 
 ### Writer service

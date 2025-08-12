@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17.2-alpine
+    image: postgres:17.5-alpine3.22
     container_name: postgres
     environment:
       POSTGRES_USER: user

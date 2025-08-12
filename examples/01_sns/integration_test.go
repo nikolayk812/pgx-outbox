@@ -29,13 +29,13 @@ func TestIntegration(t *testing.T) {
 	testcontainers.CleanupNetwork(t, network)
 
 	// Start Postgres container, ignore the endpoint at host machine, use the network alias
-	pgContainer, _, err := containers.Postgres(ctx, "postgres:17.2-alpine", network.Name)
+	pgContainer, _, err := containers.Postgres(ctx, "postgres:17.5-alpine3.22", network.Name)
 	require.NoError(t, err)
 	testcontainers.CleanupContainer(t, pgContainer)
 	pgConnStr := "postgres://postgres:postgres@postgres:5432/test-db"
 
 	// Start Localstack container, ignore the endpoint at host machine, use the network alias
-	localstack, _, err := containers.Localstack(ctx, "localstack/localstack:4.2.0", "sns,sqs", network.Name)
+	localstack, _, err := containers.Localstack(ctx, "localstack/localstack:4.7.0", "sns,sqs", network.Name)
 	require.NoError(t, err)
 	testcontainers.CleanupContainer(t, localstack)
 	localstackEndpoint := "http://localstack:4566"

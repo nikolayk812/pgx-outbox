@@ -45,7 +45,7 @@ func TestWriterReaderTestSuite(t *testing.T) {
 func (suite *WriterReaderTestSuite) SetupSuite() {
 	suite.noError(os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true"))
 
-	container, connStr, err := containers.Postgres(ctx, "postgres:17.2-alpine3.21", "")
+	container, connStr, err := containers.Postgres(ctx, "postgres:17.5-alpine3.22", "")
 	suite.noError(err)
 	suite.container = container
 

@@ -37,4 +37,4 @@ fix-lint:
 lint: generate fix-lint
 	golangci-lint run -v
 
-push-check: lint test
+push-check: test

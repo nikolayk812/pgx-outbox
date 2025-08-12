@@ -49,6 +49,7 @@ func (c lsCustomizer) Customize(req *testcontainers.GenericContainerRequest) err
 	req.Env = map[string]string{
 		"SERVICES":               c.Services,
 		"SKIP_SSL_CERT_DOWNLOAD": "true",
+		"DISABLE_EVENTS":         "1",
 	}
 
 	// This has to match the log message from the initialization script, otherwise "Ready." can be used.
