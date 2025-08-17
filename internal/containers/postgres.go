@@ -83,5 +83,6 @@ func (c pgCustomizer) initScripts() []string {
 	return []string{
 		filepath.Join(dir, "01_outbox_messages.up.sql"),
 		filepath.Join(dir, "02_users.up.sql"),
+		filepath.Join(dir, "03_orders.up.sql"),
 	}
 }

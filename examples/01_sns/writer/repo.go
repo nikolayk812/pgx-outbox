@@ -14,17 +14,17 @@ import (
 )
 
 type Repo interface {
-	CreateUser(ctx context.Context, user User) (User, error)
+	CreateOrder(ctx context.Context, order Order) (Order, error)
 }
 
 type repo struct {
 	pool *pgxpool.Pool
 
 	writer outbox.Writer
-	mapper UserMessageMapper
+	mapper OrderMessageMapper
 }
 
-func NewRepo(pool *pgxpool.Pool, writer outbox.Writer, mapper UserMessageMapper) (Repo, error) {
+func NewRepo(pool *pgxpool.Pool, writer outbox.Writer, mapper OrderMessageMapper) (Repo, error) {
 	if pool == nil {
 		return nil, fmt.Errorf("pool is nil")
 	}
@@ -42,12 +42,12 @@ func NewRepo(pool *pgxpool.Pool, writer outbox.Writer, mapper UserMessageMapper)
 	}, nil
 }
 
-func (r *repo) CreateUser(ctx context.Context, user User) (u User, txErr error) {
-	ctx, span, finishSpan := tracing.StartSpan(ctx, tracerName, "user_created")
+func (r *repo) CreateOrder(ctx context.Context, order Order) (o Order, txErr error) {
+	ctx, span, finishSpan := tracing.StartSpan(ctx, tracerName, "order_created")
 
 	tx, commitFunc, err := r.beginTx(ctx)
 	if err != nil {
-		return u, fmt.Errorf("beginTx: %w", err)
+		return o, fmt.Errorf("beginTx: %w", err)
 	}
 	defer func() {
 		if txErr = commitFunc(txErr); txErr != nil {
@@ -56,14 +56,14 @@ func (r *repo) CreateUser(ctx context.Context, user User) (u User, txErr error) 
 		finishSpan(txErr)
 	}()
 
-	user, err = r.createUser(ctx, tx, user)
+	order, err = r.createOrder(ctx, tx, order)
 	if err != nil {
-		return u, fmt.Errorf("createUser: %w", err)
+		return o, fmt.Errorf("createOrder: %w", err)
 	}
 
-	message, err := r.mapper(user)
+	message, err := r.mapper(order)
 	if err != nil {
-		return u, fmt.Errorf("mapper: %w", err)
+		return o, fmt.Errorf("mapper: %w", err)
 	}
 	message.Metadata = map[string]string{
 		tracing.MetadataTraceID: span.SpanContext().TraceID().String(),
@@ -71,30 +71,30 @@ func (r *repo) CreateUser(ctx context.Context, user User) (u User, txErr error) 
 	}
 
 	if _, err := r.writer.Write(ctx, tx, message); err != nil {
-		return u, fmt.Errorf("writer.Write: %w", err)
+		return o, fmt.Errorf("writer.Write: %w", err)
 	}
 
-	span.SetAttributes(attribute.String("user.id", user.ID.String()))
+	span.SetAttributes(attribute.String("order.id", order.ID.String()))
 
-	return user, nil
+	return order, nil
 }
 
-func (r *repo) createUser(ctx context.Context, tx pgx.Tx, user User) (u User, _ error) {
+func (r *repo) createOrder(ctx context.Context, tx pgx.Tx, order Order) (o Order, _ error) {
 	if tx == nil {
-		return u, fmt.Errorf("tx is nil")
+		return o, fmt.Errorf("tx is nil")
 	}
 
 	var createdAt time.Time
 	err := tx.QueryRow(ctx,
-		"INSERT INTO users (id, name, age) VALUES ($1, $2, $3) RETURNING created_at",
-		user.ID, user.Name, user.Age).
+		"INSERT INTO orders (id, customer_name, items_count) VALUES ($1, $2, $3) RETURNING created_at",
+		order.ID, order.CustomerName, order.ItemsCount).
 		Scan(&createdAt)
 	if err != nil {
-		return u, fmt.Errorf("tx.QueryRow: %w", err)
+		return o, fmt.Errorf("tx.QueryRow: %w", err)
 	}
 
-	user.CreatedAt = createdAt
-	return user, nil
+	order.CreatedAt = createdAt
+	return order, nil
 }
 
-type UserMessageMapper types.ToMessageFunc[User]
+type OrderMessageMapper types.ToMessageFunc[Order]

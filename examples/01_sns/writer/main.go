@@ -74,7 +74,7 @@ func main() {
 		return
 	}
 
-	repo, err := NewRepo(pool, writer, userToMessage)
+	repo, err := NewRepo(pool, writer, orderToMessage)
 	if err != nil {
 		gErr = fmt.Errorf("NewRepo: %w", err)
 		return
@@ -83,19 +83,19 @@ func main() {
 	slog.Info("Writer Ready") // integration test waits for this message
 
 	for {
-		user := User{
-			ID:   uuid.New(),
-			Name: gofakeit.Name(),
-			Age:  gofakeit.Number(18, 100),
+		order := Order{
+			ID:           uuid.New(),
+			CustomerName: gofakeit.Name(),
+			ItemsCount:   gofakeit.Number(1, 10),
 		}
 
-		user, err = repo.CreateUser(ctx, user)
+		order, err = repo.CreateOrder(ctx, order)
 		if err != nil {
-			gErr = fmt.Errorf("r.CreateUser: %w", err)
+			gErr = fmt.Errorf("r.CreateOrder: %w", err)
 			return
 		}
 
-		slog.Info("user created", "user", user)
+		slog.Info("order created", "order", order)
 
 		time.Sleep(interval)
 	}

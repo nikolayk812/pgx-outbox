@@ -8,16 +8,16 @@ import (
 	outbox "github.com/nikolayk812/pgx-outbox/types"
 )
 
-const EventTypeUserCreated = "user_created"
+const EventTypeOrderCreated = "order_created"
 
-func userToMessage(user User) (m outbox.Message, _ error) {
-	payload := UserMessagePayload{
-		ID:        user.ID,
-		Name:      user.Name,
-		Age:       user.Age,
-		CreatedAt: user.CreatedAt,
-		Quote:     gofakeit.Quote(),
-		EventType: EventTypeUserCreated,
+func orderToMessage(order Order) (m outbox.Message, _ error) {
+	payload := OrderMessagePayload{
+		ID:           order.ID,
+		CustomerName: order.CustomerName,
+		ItemsCount:   order.ItemsCount,
+		CreatedAt:    order.CreatedAt,
+		Quote:        gofakeit.Quote(),
+		EventType:    EventTypeOrderCreated,
 	}
 
 	payloadBytes, err := json.Marshal(payload)

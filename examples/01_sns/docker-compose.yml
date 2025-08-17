@@ -11,9 +11,10 @@ services:
     volumes:
       - ../../internal/sql/01_outbox_messages.up.sql:/docker-entrypoint-initdb.d/01_outbox_messages.up.sql
       - ../../internal/sql/02_users.up.sql:/docker-entrypoint-initdb.d/02_users.up.sql
+      - ../../internal/sql/03_orders.up.sql:/docker-entrypoint-initdb.d/03_orders.up.sql
 
   localstack:
-    image: localstack/localstack:4.0.3
+    image: localstack/localstack:4.7.0
     container_name: localstack
     environment:
       - SERVICES=sns,sqs
@@ -26,7 +27,7 @@ services:
     entrypoint: [ "docker-entrypoint.sh" ]
 
   otel-lgtm:
-    image: grafana/otel-lgtm:0.8.1
+    image: grafana/otel-lgtm:0.11.8
     container_name: otel-lgtm
     ports:
       - "3000:3000"  # Port for the Grafana UI
