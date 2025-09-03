@@ -11,7 +11,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/sqs"
 	"github.com/nikolayk812/pgx-outbox/examples/01_sns/clients/tracing"
 	outbox "github.com/nikolayk812/pgx-outbox/types"
@@ -156,14 +155,4 @@ func messageCtx(ctx context.Context, message outbox.Message) context.Context {
 	})
 
 	return trace.ContextWithRemoteSpanContext(ctx, spanContext)
-}
-
-type userMessagePayload struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	Age       int       `json:"age"`
-	CreatedAt time.Time `json:"created_at"`
-
-	Quote     string `json:"quote"`
-	EventType string `json:"event_type"`
 }
