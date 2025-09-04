@@ -2,28 +2,15 @@
 
 ##  Architecture
 
-`Writer` service from `../01_sns` produces messages to the outbox table in Postgres.
+Writer → Postgres outbox table → PeerDB (CDC) → Kafka topic
 
-PeerDB acts as an Outbox Relay, extracts outbox messages using CDC and forwards them to a Kafka topic.
+### Components
 
-Postgres and PeerDB are started in (Docker) containers using `docker-compose`. 
+**Writer** - Creates fake orders and persists them in the `orders` table. In the same transaction, writes messages to the `outbox_messages` table. In production, this could be any business service like `order-service`.
 
-### Writer
+**PeerDB** - Acts as an Outbox Relay, extracting outbox messages using CDC and forwarding them to Kafka topics. Runs in Docker containers via `docker-compose`.
 
-Creates fake orders and persists them in the `orders` table in the Postgres database. 
-In the same transaction, it writes messages to the `outbox_messages` table.
-
-In the real world, the `Writer` could be a business service: `order-service`.
-
-### Kafka
-
-This example runs Confluent Kafka in a Docker container using `docker-compose`. 
-
-There is also Redpanda UI available.
-
-### PeerDB
-
-Extracts messages from the `outbox_messages` table in Postgres and forwards them to a Kafka topic.
+**Kafka** - Message destination running Confluent Kafka with Redpanda UI for monitoring.
 
 ## Steps to run
 
@@ -59,6 +46,7 @@ https://docs.peerdb.io/quickstart/quickstart
 #### Kafka Peer
 Create Kafka Peer using data from `docker-compose.yml`:
 https://docs.peerdb.io/quickstart/streams-quickstart
+https://docs.peerdb.io/mirror/cdc-pg-kafka
 `kafka:29092` for Servers field.
 
 <img src="img/peers.png" />
