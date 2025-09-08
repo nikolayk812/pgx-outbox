@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sns v1.38.1
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.42.3
 	github.com/brianvoe/gofakeit v3.18.0+incompatible
-	github.com/docker/docker v28.3.3+incompatible
+	github.com/docker/docker v28.4.0+incompatible
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/google/go-cmp v0.7.0
 	github.com/jackc/pglogrepl v0.0.0-20250509230407-a9884f6bd75a
@@ -56,7 +56,6 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
