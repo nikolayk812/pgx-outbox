@@ -16,7 +16,7 @@ require (
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/google/go-cmp v0.7.0
 	github.com/jackc/pglogrepl v0.0.0-20250509230407-a9884f6bd75a
-	github.com/jackc/pgx/v5 v5.7.5
+	github.com/jackc/pgx/v5 v5.7.6
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/localstack v0.38.0
