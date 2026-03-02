@@ -56,7 +56,7 @@ func (suite *ReaderTestSuite) SetupSuite() {
 	suite.noError(err)
 	suite.network = network
 
-	postgresContainer, connStr, err := containers.Postgres(ctx, "postgres:17.5-alpine3.22", network.Name)
+	postgresContainer, connStr, err := containers.Postgres(ctx, "postgres:18.3-alpine3.23", network.Name)
 	suite.noError(err)
 	suite.postgresContainer = postgresContainer
 

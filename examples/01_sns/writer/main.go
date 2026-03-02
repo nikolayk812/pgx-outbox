@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/brianvoe/gofakeit"
+	"github.com/brianvoe/gofakeit/v7"
 	"github.com/exaring/otelpgx"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"

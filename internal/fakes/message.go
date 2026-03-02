@@ -3,7 +3,7 @@ package fakes
 import (
 	"encoding/json"
 
-	"github.com/brianvoe/gofakeit"
+	"github.com/brianvoe/gofakeit/v7"
 	"github.com/nikolayk812/pgx-outbox/types"
 )
 

@@ -1,4 +1,4 @@
-FROM alpine:3.21
+FROM alpine:3.23.3
 
 COPY ./build/linux/writer /writer
 

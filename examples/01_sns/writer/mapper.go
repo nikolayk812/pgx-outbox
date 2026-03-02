@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/brianvoe/gofakeit"
+	"github.com/brianvoe/gofakeit/v7"
 	outbox "github.com/nikolayk812/pgx-outbox/types"
 )
 
