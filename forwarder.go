@@ -19,6 +19,7 @@ type forwarder struct {
 	reader    Reader
 	publisher Publisher
 	filter    types.MessageFilter
+	pool      *pgxpool.Pool
 }
 
 func NewForwarder(reader Reader, publisher Publisher, opts ...ForwardOption) (Forwarder, error) {
@@ -51,12 +52,18 @@ func NewForwarderFromPool(table string, pool *pgxpool.Pool, publisher Publisher,
 		return nil, fmt.Errorf("NewReader: %w", err)
 	}
 
-	forwarder, err := NewForwarder(reader, publisher, opts...)
+	fwd, err := NewForwarder(reader, publisher, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("NewForwarder: %w", err)
 	}
 
-	return forwarder, nil
+	f, ok := fwd.(*forwarder)
+	if !ok {
+		return nil, fmt.Errorf("unexpected forwarder type %T", fwd)
+	}
+	f.pool = pool
+
+	return f, nil
 }
 
 // Forward reads unpublished messages from the outbox table according to the limit and filter in outbox.Reader,
@@ -71,12 +78,51 @@ func NewForwarderFromPool(table string, pool *pgxpool.Pool, publisher Publisher,
 func (f *forwarder) Forward(ctx context.Context, limit int) (types.ForwardOutput, error) {
 	var fs types.ForwardOutput
 
-	messages, err := f.reader.Read(ctx, limit)
+	r, ok := f.reader.(*reader)
+	if !ok || f.pool == nil {
+		messages, err := f.reader.Read(ctx, limit)
+		if err != nil {
+			return fs, fmt.Errorf("reader.Read: %w", err)
+		}
+
+		if len(messages) == 0 {
+			return fs, nil
+		}
+
+		fs.Read = messages
+
+		for idx, message := range messages {
+			if err := f.publisher.Publish(ctx, message); err != nil {
+				return fs, fmt.Errorf("publisher.Publish index[%d] topic[%s] id[%d]: %w", idx, message.Topic, message.ID, err)
+			}
+			fs.PublishedIDs = append(fs.PublishedIDs, message.ID)
+		}
+
+		ids := types.Messages(messages).IDs()
+
+		fs.AckedIDs, err = f.reader.Ack(ctx, ids)
+		if err != nil {
+			return fs, fmt.Errorf("reader.Ack count[%d]: %w", len(ids), err)
+		}
+
+		return fs, nil
+	}
+
+	tx, err := f.pool.Begin(ctx)
 	if err != nil {
-		return fs, fmt.Errorf("reader.Read: %w", err)
+		return fs, fmt.Errorf("pool.Begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	messages, err := r.readTx(ctx, tx, limit)
+	if err != nil {
+		return fs, fmt.Errorf("reader.readTx: %w", err)
 	}
 
 	if len(messages) == 0 {
+		if err := tx.Commit(ctx); err != nil {
+			return fs, fmt.Errorf("tx.Commit empty: %w", err)
+		}
 		return fs, nil
 	}
 
@@ -91,10 +137,13 @@ func (f *forwarder) Forward(ctx context.Context, limit int) (types.ForwardOutput
 
 	ids := types.Messages(messages).IDs()
 
-	// if it fails here, messages would be published again on the next run
-	fs.AckedIDs, err = f.reader.Ack(ctx, ids)
+	fs.AckedIDs, err = r.ackTx(ctx, tx, ids)
 	if err != nil {
-		return fs, fmt.Errorf("reader.Ack count[%d]: %w", len(ids), err)
+		return fs, fmt.Errorf("reader.ackTx count[%d]: %w", len(ids), err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fs, fmt.Errorf("tx.Commit: %w", err)
 	}
 
 	return fs, nil

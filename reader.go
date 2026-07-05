@@ -15,7 +15,8 @@ import (
 
 // Reader reads outbox unpublished messages from a single outbox table.
 // Users should prefer to interact directly with Forwarder instance instead of Reader.
-// Read and Ack happen in different transactions.
+// Public Read and Ack happen in different transactions.
+// Forwarder may use internal transactional helpers for stronger concurrency guarantees.
 type Reader interface {
 	// Read reads unpublished messages from the outbox table that match the filter.
 	// limit is the maximum number of messages to read.
@@ -32,6 +33,10 @@ type reader struct {
 	pool   *pgxpool.Pool
 	table  string
 	filter types.MessageFilter
+}
+
+type queryer interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
 func NewReader(table string, pool *pgxpool.Pool, opts ...ReadOption) (Reader, error) {
@@ -63,6 +68,14 @@ func NewReader(table string, pool *pgxpool.Pool, opts ...ReadOption) (Reader, er
 // - limit is LTE 0
 // - SQL query building or DB call fails.
 func (r *reader) Read(ctx context.Context, limit int) ([]types.Message, error) {
+	return r.read(ctx, r.pool, limit, false)
+}
+
+func (r *reader) readTx(ctx context.Context, tx pgx.Tx, limit int) ([]types.Message, error) {
+	return r.read(ctx, tx, limit, true)
+}
+
+func (r *reader) read(ctx context.Context, q queryer, limit int, lock bool) ([]types.Message, error) {
 	if limit <= 0 {
 		return nil, fmt.Errorf("limit must be GT 0, got %d", limit)
 	}
@@ -73,18 +86,22 @@ func (r *reader) Read(ctx context.Context, limit int) ([]types.Message, error) {
 		Where(sq.Eq{"published_at": nil})
 
 	sb = whereFilter(sb, r.filter)
-
 	sb = sb.OrderBy("id ASC").Limit(uint64(limit))
 
-	q, args, err := sb.ToSql()
+	if lock {
+		sb = sb.Suffix("FOR UPDATE SKIP LOCKED")
+	}
+
+	qry, args, err := sb.ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("sb.ToSql: %w", err)
 	}
 
-	rows, err := r.pool.Query(ctx, q, args...)
+	rows, err := q.Query(ctx, qry, args...)
 	if err != nil {
-		return nil, fmt.Errorf("pool.Query: %w", err)
+		return nil, fmt.Errorf("queryer.Query: %w", err)
 	}
+	defer rows.Close()
 
 	result, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (types.Message, error) {
 		var msg types.Message
@@ -106,6 +123,14 @@ func (r *reader) Read(ctx context.Context, limit int) ([]types.Message, error) {
 // returns an error if
 // - SQL query building or DB call fails.
 func (r *reader) Ack(ctx context.Context, ids []int64) ([]int64, error) {
+	return r.ack(ctx, r.pool, ids)
+}
+
+func (r *reader) ackTx(ctx context.Context, tx pgx.Tx, ids []int64) ([]int64, error) {
+	return r.ack(ctx, tx, ids)
+}
+
+func (r *reader) ack(ctx context.Context, q queryer, ids []int64) ([]int64, error) {
 	if len(ids) == 0 {
 		return ids, nil
 	}
@@ -119,15 +144,16 @@ func (r *reader) Ack(ctx context.Context, ids []int64) ([]int64, error) {
 		Where(sq.Eq{"published_at": nil}).
 		Suffix("RETURNING id")
 
-	q, args, err := ub.ToSql()
+	qry, args, err := ub.ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("ub.ToSql: %w", err)
 	}
 
-	rows, err := r.pool.Query(ctx, q, args...)
+	rows, err := q.Query(ctx, qry, args...)
 	if err != nil {
-		return nil, fmt.Errorf("pool.Query: %w", err)
+		return nil, fmt.Errorf("queryer.Query: %w", err)
 	}
+	defer rows.Close()
 
 	updatedIDs, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (int64, error) {
 		var id int64
