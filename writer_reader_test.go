@@ -765,3 +765,167 @@ func (suite *WriterReaderTestSuite) TestReader_New() {
 		})
 	}
 }
+
+type recordingPublisher struct {
+	published []types.Message
+}
+
+func (p *recordingPublisher) Publish(_ context.Context, message types.Message) error {
+	p.published = append(p.published, message)
+	return nil
+}
+
+func (suite *WriterReaderTestSuite) TestForwarder_FromPool_ForwardsAndAcksMessages() {
+	t := suite.T()
+
+	// GIVEN
+	msg1 := fakes.FakeMessage()
+	msg2 := fakes.FakeMessage()
+
+	_, err := suite.write(msg1)
+	require.NoError(t, err)
+
+	_, err = suite.write(msg2)
+	require.NoError(t, err)
+
+	publisher := &recordingPublisher{}
+	forwarder, err := outbox.NewForwarderFromPool(outboxTable, suite.pool, publisher)
+	require.NoError(t, err)
+
+	// WHEN
+	out, err := forwarder.Forward(ctx, 10)
+
+	// THEN
+	require.NoError(t, err)
+	assert.Len(t, out.Read, 2)
+	assert.Len(t, out.PublishedIDs, 2)
+	assert.Len(t, out.AckedIDs, 2)
+	assert.Len(t, publisher.published, 2)
+
+	assertEqualMessages(t, []types.Message{msg1, msg2}, publisher.published)
+
+	remaining, err := suite.reader.Read(ctx, 10)
+	require.NoError(t, err)
+	assert.Len(t, remaining, 0)
+}
+
+func (suite *WriterReaderTestSuite) TestForwarder_FromPool_ConcurrentWorkers_DoNotDoubleRead() {
+	t := suite.T()
+
+	// GIVEN
+	total := 6
+	for i := 0; i < total; i++ {
+		_, err := suite.write(fakes.FakeMessage())
+		require.NoError(t, err)
+	}
+
+	pub1 := &recordingPublisher{}
+	pub2 := &recordingPublisher{}
+
+	fwd1, err := outbox.NewForwarderFromPool(outboxTable, suite.pool, pub1)
+	require.NoError(t, err)
+
+	fwd2, err := outbox.NewForwarderFromPool(outboxTable, suite.pool, pub2)
+	require.NoError(t, err)
+
+	type result struct {
+		out types.ForwardOutput
+		err error
+	}
+
+	ch := make(chan result, 2)
+
+	// WHEN
+	go func() {
+		out, err := fwd1.Forward(ctx, total)
+		ch <- result{out: out, err: err}
+	}()
+
+	go func() {
+		out, err := fwd2.Forward(ctx, total)
+		ch <- result{out: out, err: err}
+	}()
+
+	r1 := <-ch
+	r2 := <-ch
+
+	// THEN
+	require.NoError(t, r1.err)
+	require.NoError(t, r2.err)
+
+	allPublished := append(pub1.published, pub2.published...)
+	assert.Len(t, allPublished, total)
+
+	seen := make(map[int64]int)
+	for _, msg := range allPublished {
+		seen[msg.ID]++
+	}
+
+	assert.Len(t, seen, total)
+	for id, count := range seen {
+		assert.Equalf(t, 1, count, "message id %d was published more than once", id)
+	}
+
+	remaining, err := suite.reader.Read(ctx, total)
+	require.NoError(t, err)
+	assert.Len(t, remaining, 0)
+}
+
+type stubReader struct {
+	readCalled bool
+	ackCalled  bool
+	messages   []types.Message
+	ackedIDs   []int64
+}
+
+func (r *stubReader) Read(_ context.Context, limit int) ([]types.Message, error) {
+	r.readCalled = true
+	if limit < len(r.messages) {
+		return r.messages[:limit], nil
+	}
+	return r.messages, nil
+}
+
+func (r *stubReader) Ack(_ context.Context, ids []int64) ([]int64, error) {
+	r.ackCalled = true
+	r.ackedIDs = append(r.ackedIDs, ids...)
+	return ids, nil
+}
+
+func (suite *WriterReaderTestSuite) TestForwarder_NonPoolReader_FallbackPathStillWorks() {
+	t := suite.T()
+
+	// GIVEN
+	msg1 := fakes.FakeMessage()
+	msg1.ID = 101
+
+	msg2 := fakes.FakeMessage()
+	msg2.ID = 102
+
+	reader := &stubReader{
+		messages: []types.Message{msg1, msg2},
+	}
+
+	publisher := &recordingPublisher{}
+
+	forwarder, err := outbox.NewForwarder(reader, publisher)
+	require.NoError(t, err)
+
+	// WHEN
+	out, err := forwarder.Forward(ctx, 10)
+
+	// THEN
+	require.NoError(t, err)
+	assert.True(t, reader.readCalled)
+	assert.True(t, reader.ackCalled)
+
+	assert.Len(t, out.Read, 2)
+	assert.Len(t, out.PublishedIDs, 2)
+	assert.Len(t, out.AckedIDs, 2)
+	assert.Len(t, publisher.published, 2)
+
+	assert.Equal(t, []int64{101, 102}, out.PublishedIDs)
+	assert.Equal(t, []int64{101, 102}, out.AckedIDs)
+	assert.Equal(t, []int64{101, 102}, reader.ackedIDs)
+}
+
